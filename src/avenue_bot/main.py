@@ -85,6 +85,16 @@ def run(mode: str, state_path: Path) -> int:
 
         state.save(state_path, current, posted=True)
         log.info("дайджест опубликован, состояние обновлено")
+
+        # Уведомляем только после сохранения снимка: иначе «успех» мог бы прийти
+        # там, где состояние не записалось и назавтра ушёл бы дубль.
+        if cfg.telegram_ready:
+            cities = len({car.city for car in cars})
+            alerts.info(
+                cfg,
+                f"Дайджест опубликован: {len(cars)} авто из {cities} городов, "
+                f"сообщений — {len(posts)}.",
+            )
         return 0
 
 
