@@ -1,0 +1,67 @@
+# Бот акций «Авеню»: раз в сутки проверяет спеццены и публикует дайджест,
+# если состав машин или цены изменились.
+#
+# Расписание в GitHub Actions работает только с ветки по умолчанию — этот файл
+# лежит в main, поэтому крон активен. Если перенести его в рабочую ветку,
+# по расписанию он запускаться перестанет.
+name: Avenue · дайджест акций
+
+on:
+  schedule:
+    # 07:00 UTC = 10:00 МСК. Actions под нагрузкой может задержать запуск
+    # на 5–20 минут, поэтому пост выходит в промежутке 10:00–10:20.
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Режим запуска'
+        type: choice
+        default: dry-run
+        options: [dry-run, run, seed]
+
+concurrency:
+  group: avenue-promos
+  cancel-in-progress: false
+
+jobs:
+  digest:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write          # нужен для коммита state/snapshot.json
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - run: pip install -r requirements.txt
+
+      - run: python -m pytest -q
+
+      - name: Запуск бота
+        env:
+          # Ручной запуск берёт режим из формы, по расписанию всегда боевой.
+          MODE: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'run' }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          echo "режим: $MODE"
+          PYTHONPATH=src python -m avenue_bot.main --mode "$MODE"
+
+      - name: Сохранить состояние
+        # dry-run состояние не меняет, но проверка ниже всё равно это поймает.
+        run: |
+          if git diff --quiet -- state/; then
+            echo "состояние не изменилось — коммит не нужен"
+            exit 0
+          fi
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add state/
+          git commit -m 'chore(avenue-bot): обновление состояния акций [skip ci]'
+          git push

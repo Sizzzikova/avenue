@@ -1,0 +1,45 @@
+# Разовая проверка: видит ли раннер GitHub сайт «Авеню».
+#
+# Раннеры Actions стоят в США, а российские сайты нередко закрыты для
+# зарубежных IP. Пока эта проверка не прошла, включать расписание бессмысленно.
+# Запускается только вручную: Actions -> Avenue · проверка доступности -> Run workflow.
+name: Avenue · проверка доступности
+
+on:
+  workflow_dispatch:
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Страницы со спецценами
+        run: |
+          for url in \
+            https://avenuerent.ru/aktcii/ \
+            https://irkutsk.avenuerent.ru/aktcii/ \
+            https://gorno-altaysk.avenuerent.ru/aktcii/
+          do
+            echo "=== $url"
+            code=$(curl -sS -o /tmp/page.html -w '%{http_code}' -A 'Mozilla/5.0' --max-time 30 "$url" || echo FAIL)
+            echo "HTTP: $code, размер: $(wc -c < /tmp/page.html) байт"
+            echo "карточек .default_car_data: $(grep -o 'default_car_data' /tmp/page.html | wc -l)"
+            grep -o '<h1[^>]*>[^<]*</h1>' /tmp/page.html | head -1
+            echo
+          done
+
+      - name: AJAX-эндпоинт цен (без cookie)
+        run: |
+          echo "=== POST /ajax/calc_catalog.php id=6312"
+          curl -sS -X POST -A 'Mozilla/5.0' --max-time 30 \
+            -F 'id=6312' https://avenuerent.ru/ajax/calc_catalog.php | head -c 500
+          echo
+
+      - name: Telegram Bot API
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: |
+          if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+            echo "секрет TELEGRAM_BOT_TOKEN не задан — пропускаю"; exit 0
+          fi
+          curl -sS --max-time 30 "https://api.telegram.org/bot$TELEGRAM_BOT_TOKEN/getMe" | head -c 300
+          echo
