@@ -54,23 +54,6 @@ def test_same_id_in_different_cities_is_not_confused():
     assert state.changed(before, after)
 
 
-class TestMarks:
-    def test_new_car_gets_badge(self):
-        assert state.mark(state.EMPTY, car()) == "🆕"
-
-    def test_grown_discount_gets_badge(self):
-        before = state.build([car(discount_pct=10)])
-        assert state.mark(before, car(discount_pct=20)) == "📉"
-
-    def test_unchanged_car_has_no_badge(self):
-        before = state.build([car(discount_pct=20)])
-        assert state.mark(before, car(discount_pct=20)) == ""
-
-    def test_shrunk_discount_has_no_badge(self):
-        before = state.build([car(discount_pct=30)])
-        assert state.mark(before, car(discount_pct=20)) == ""
-
-
 class TestPersistence:
     def test_roundtrip(self, tmp_path):
         path = tmp_path / "snapshot.json"

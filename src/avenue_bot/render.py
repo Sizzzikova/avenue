@@ -9,7 +9,6 @@ from typing import Optional
 
 from .config import Config
 from .models import Car
-from .state import Snapshot, mark
 
 MONTHS_GENITIVE = (
     "января", "февраля", "марта", "апреля", "мая", "июня",
@@ -43,22 +42,23 @@ def format_date(value: Optional[str]) -> str:
     return value
 
 
-def car_line(car: Car, badge: str) -> str:
+def car_line(car: Car) -> str:
+    """Строка списка: дефис, модель-ссылка, цена со скидкой, процент.
+
+    Цена до скидки и срок её действия в пост не выводятся по решению заказчика,
+    хотя и продолжают собираться: `old_price` нужен для расчёта процента,
+    а оба поля попадают в снимок состояния.
+    """
     name = f'<a href="{html.escape(car.url, quote=True)}">{html.escape(car.name)}</a>'
-    prefix = f"{badge} " if badge else ""
+    price = (
+        f"<b>{format_price(car.day_price)}</b>/сут"
+        if car.day_price
+        else format_price(car.base_price)
+    )
 
-    prices = []
-    if car.old_price:
-        prices.append(f"<s>{format_price(car.old_price)}</s>")
-    if car.day_price:
-        prices.append(f"<b>{format_price(car.day_price)}</b>/сут")
-    price_text = " ".join(prices) or format_price(car.base_price)
-
-    line = f"{prefix}{name} — {price_text}"
+    line = f"- {name} — {price}"
     if car.discount_pct:
         line += f" · −{car.discount_pct}%"
-    if car.discount_to:
-        line += f" (до {format_date(car.discount_to)})"
     return line
 
 
@@ -87,7 +87,6 @@ def _compose(header: str, blocks: dict[str, list[str]], footer: str) -> str:
 
 def build_digest(
     cars: list[Car],
-    previous: Snapshot,
     config: Config,
     today: Optional[date] = None,
 ) -> list[Post]:
@@ -120,7 +119,7 @@ def build_digest(
         images.clear()
 
     for car in ordered:
-        line = car_line(car, mark(previous, car))
+        line = car_line(car)
         candidate = dict(blocks)
         candidate[car.city] = [*candidate.get(car.city, []), line]
 

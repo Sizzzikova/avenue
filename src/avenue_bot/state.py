@@ -61,17 +61,6 @@ def changed(previous: Snapshot, current: Snapshot) -> bool:
     return previous.fingerprint != current.fingerprint
 
 
-def mark(previous: Snapshot, car: Car) -> str:
-    """Метка для строки дайджеста: новинка, выросшая скидка или ничего."""
-    before = previous.cars.get(car.key)
-    if before is None:
-        return "🆕"
-    was = before.get("discount_pct") or 0
-    if car.discount_pct > was:
-        return "📉"
-    return ""
-
-
 def load(path: Path) -> Snapshot:
     if not path.exists():
         return EMPTY

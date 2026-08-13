@@ -58,7 +58,7 @@ def run(mode: str, state_path: Path) -> int:
             log.info("изменений с прошлого запуска нет — ничего не публикуем")
             return 0
 
-        posts = render.build_digest(cars, previous, cfg)
+        posts = render.build_digest(cars, cfg)
         if not posts:
             log.info("публиковать нечего: машин со скидкой не осталось")
             state.save(state_path, current, posted=False)
