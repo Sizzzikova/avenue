@@ -1,0 +1,43 @@
+# Конфигурация бота «Авеню».
+#
+# ВАЖНО: если после редизайна сайта бот перестал находить машины, править нужно
+# именно секцию `selectors` — код трогать не требуется. Как проверить новые
+# селекторы, описано в README.md.
+
+cities:
+  - name: Новосибирск
+    base_url: https://avenuerent.ru
+  - name: Иркутск
+    base_url: https://irkutsk.avenuerent.ru
+  - name: Горно-Алтайск
+    base_url: https://gorno-altaysk.avenuerent.ru
+
+# Путь к странице со спецценами (одинаковый на всех поддоменах).
+promos_path: /aktcii/
+
+# Внутренний JSON-эндпоинт сайта: отдаёт цену со скидкой по id машины.
+# В HTML цен нет — их подставляет JavaScript, поэтому без этого запроса
+# мы знаем только базовую цену.
+price_ajax_path: /ajax/calc_catalog.php
+
+selectors:
+  card: .default_car_data                     # карточка машины целиком
+  item: .cars__item                           # блок с атрибутом static-price
+  car_id: .colors a[data-car]                 # id машины для AJAX-запроса цены
+  link: a[href^="/autopark/cars/"]            # ссылка на страницу машины
+  image: img[data-src]                        # фото (lazy-load, .webp)
+
+telegram:
+  enabled: true
+  # Максимум фото в одном альбоме (ограничение Telegram).
+  media_group_limit: 10
+  # Максимальная длина подписи к альбому (ограничение Telegram).
+  caption_limit: 1024
+
+max:
+  # Отложено: подключим после регистрации бота от юрлица на business.max.ru.
+  enabled: false
+  api_base: https://platform-api.max.ru
+
+# Хвост поста — общий для всех дайджестов.
+footer: "Без залога, КАСКО в цене, доставка по адресу."
