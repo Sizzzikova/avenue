@@ -64,23 +64,21 @@ class TestCarLine:
         line = car_line(car())
         assert 'href="https://avenuerent.ru/autopark/cars/6312/"' in line
         assert "Exeed TXL 4WD" in line
-        assert "<b>6 700 ₽</b>/сут" in line
+        assert "<b>6\u00a0700\u00a0₽</b>/сут" in line
         assert "−20%" in line
 
     def test_line_starts_with_dash(self):
         assert car_line(car()).startswith("- ")
 
     def test_old_price_is_not_shown(self):
-        """Зачёркнутую цену до скидки заказчик просил убрать."""
         line = car_line(car(old_price=8400))
         assert "<s>" not in line
-        assert "8 400" not in line
+        assert "8\u00a0400" not in line
 
     def test_deadline_is_not_shown(self):
         assert "31.12.2026" not in car_line(car(discount_to="2026-12-31"))
 
     def test_html_special_chars_are_escaped(self):
-        """Иначе '&' в названии модели уронит отправку с parse_mode=HTML."""
         line = car_line(car(name="Haval H6 <Premium> & Co"))
         assert "&lt;Premium&gt;" in line and "&amp; Co" in line
         assert "<Premium>" not in line
