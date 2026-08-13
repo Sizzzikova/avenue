@@ -54,14 +54,16 @@ jobs:
           PYTHONPATH=src python -m avenue_bot.main --mode "$MODE"
 
       - name: Сохранить состояние
-        # dry-run состояние не меняет, но проверка ниже всё равно это поймает.
+        # Сначала индексируем, потом сравниваем индекс: `git diff` без `--cached`
+        # не видит новых файлов, и первый snapshot.json никогда бы не закоммитился,
+        # из-за чего бот постил бы один и тот же дайджест каждый день.
         run: |
-          if git diff --quiet -- state/; then
+          git add state/
+          if git diff --cached --quiet -- state/; then
             echo "состояние не изменилось — коммит не нужен"
             exit 0
           fi
           git config user.name  'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git add state/
           git commit -m 'chore(avenue-bot): обновление состояния акций [skip ci]'
           git push
