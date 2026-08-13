@@ -1,0 +1,48 @@
+{
+  "cars": {
+    "Горно-Алтайск:5751": {
+      "day_price": 8895,
+      "discount_pct": 15,
+      "name": "Chery Tiggo 4 Pro",
+      "old_price": 10465
+    },
+    "Горно-Алтайск:8264": {
+      "day_price": 15732,
+      "discount_pct": 10,
+      "name": "Exeed TXL 4WD",
+      "old_price": 17480
+    },
+    "Иркутск:11056": {
+      "day_price": 4050,
+      "discount_pct": 10,
+      "name": "Nissan Roox",
+      "old_price": 4500
+    },
+    "Иркутск:6391": {
+      "day_price": 7425,
+      "discount_pct": 10,
+      "name": "Geely Belgee X50",
+      "old_price": 8250
+    },
+    "Новосибирск:4586": {
+      "day_price": 7854,
+      "discount_pct": 15,
+      "name": "Toyota Camry 70",
+      "old_price": 9240
+    },
+    "Новосибирск:5750": {
+      "day_price": 5544,
+      "discount_pct": 10,
+      "name": "Chery Tiggo 4 Pro",
+      "old_price": 6160
+    },
+    "Новосибирск:6312": {
+      "day_price": 9443,
+      "discount_pct": 15,
+      "name": "Exeed TXL 4WD",
+      "old_price": 11110
+    }
+  },
+  "fingerprint": "758b30180f8899a36114c0483853272da661ffe987c35d60be4b1c4351f2ea11",
+  "posted_at": "2026-08-13T07:37:41+00:00"
+}
