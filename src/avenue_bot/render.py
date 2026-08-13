@@ -102,7 +102,7 @@ def build_digest(
 
     today = today or date.today()
     header = (
-        f"🚗 <b>Авто со спецценой</b> — {today.day} {MONTHS_GENITIVE[today.month - 1]}"
+        f"🚗 <b>Автомобили со скидкой</b> ({today.day} {MONTHS_GENITIVE[today.month - 1]})"
     )
     footer = html.escape(config.footer) if config.footer else ""
 
