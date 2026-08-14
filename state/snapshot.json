@@ -1,14 +1,20 @@
 {
   "cars": {
-    "Горно-Алтайск:5751": {
-      "day_price": 8895,
-      "discount_pct": 15,
-      "name": "Chery Tiggo 4 Pro",
-      "old_price": 10465
+    "Горно-Алтайск:5755": {
+      "day_price": 9936,
+      "discount_pct": 10,
+      "name": "Haval Jolion",
+      "old_price": 11040
+    },
+    "Горно-Алтайск:8253": {
+      "day_price": 10764,
+      "discount_pct": 10,
+      "name": "Haval Jolion 4WD",
+      "old_price": 11960
     },
     "Горно-Алтайск:8264": {
-      "day_price": 15732,
-      "discount_pct": 10,
+      "day_price": 13984,
+      "discount_pct": 20,
       "name": "Exeed TXL 4WD",
       "old_price": 17480
     },
@@ -18,31 +24,43 @@
       "name": "Nissan Roox",
       "old_price": 4500
     },
-    "Иркутск:6391": {
-      "day_price": 7425,
+    "Иркутск:6525": {
+      "day_price": 5400,
       "discount_pct": 10,
-      "name": "Geely Belgee X50",
-      "old_price": 8250
+      "name": "Geely Emgrand",
+      "old_price": 6000
     },
-    "Новосибирск:4586": {
-      "day_price": 7854,
+    "Новосибирск:13236": {
+      "day_price": 6336,
+      "discount_pct": 20,
+      "name": "Kia K5",
+      "old_price": 7920
+    },
+    "Новосибирск:5735": {
+      "day_price": 6545,
       "discount_pct": 15,
-      "name": "Toyota Camry 70",
-      "old_price": 9240
-    },
-    "Новосибирск:5750": {
-      "day_price": 5544,
-      "discount_pct": 10,
-      "name": "Chery Tiggo 4 Pro",
-      "old_price": 6160
+      "name": "Chery Arrizo 8",
+      "old_price": 7700
     },
     "Новосибирск:6312": {
-      "day_price": 9443,
-      "discount_pct": 15,
+      "day_price": 7777,
+      "discount_pct": 30,
       "name": "Exeed TXL 4WD",
       "old_price": 11110
+    },
+    "Новосибирск:6469": {
+      "day_price": 7480,
+      "discount_pct": 15,
+      "name": "Changan UNI-V",
+      "old_price": 8800
+    },
+    "Новосибирск:9955": {
+      "day_price": 6171,
+      "discount_pct": 15,
+      "name": "Haval Jolion 4WD",
+      "old_price": 7260
     }
   },
-  "fingerprint": "758b30180f8899a36114c0483853272da661ffe987c35d60be4b1c4351f2ea11",
-  "posted_at": "2026-08-13T08:57:12+00:00"
+  "fingerprint": "0d4f3b0480d0813b6a23bbabc0ec10f9d2d6c3dab7ecf337c98f5d61289a666a",
+  "posted_at": "2026-08-14T08:10:38+00:00"
 }
