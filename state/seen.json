@@ -1,1 +1,82 @@
-{}
+{
+  "gorno-altaysk:car5755": {
+    "city": "Горно-Алтайск",
+    "fingerprint": "8c5618e46bb500e7cc4c930b8e3d25b88d54ca1cf6e8cdfcc2b06e14829b780c",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 9936,
+    "price_source": "calc",
+    "title": "Haval Jolion"
+  },
+  "gorno-altaysk:car8253": {
+    "city": "Горно-Алтайск",
+    "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 10764,
+    "price_source": "calc",
+    "title": "Haval Jolion 4WD"
+  },
+  "gorno-altaysk:car8264": {
+    "city": "Горно-Алтайск",
+    "fingerprint": "773cdd4ec30c6bb197a871ce87c65bafc58cdeae1459768339c640f71c408d19",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 13984,
+    "price_source": "calc",
+    "title": "Exeed TXL 4WD"
+  },
+  "irkutsk:car11056": {
+    "city": "Иркутск",
+    "fingerprint": "c07359f5491685ea01b8775baf7ac91063660a633d4b9c411cb8bb76ca8640f7",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 4050,
+    "price_source": "calc",
+    "title": "Nissan Roox"
+  },
+  "irkutsk:car6525": {
+    "city": "Иркутск",
+    "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 5400,
+    "price_source": "calc",
+    "title": "Geely Emgrand"
+  },
+  "nsk:car13236": {
+    "city": "Новосибирск",
+    "fingerprint": "925ee6d572c3df41b03a8d30e6a9241de6cf082bd421105345a4c38305e54f44",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 6336,
+    "price_source": "calc",
+    "title": "Kia K5"
+  },
+  "nsk:car5735": {
+    "city": "Новосибирск",
+    "fingerprint": "335b40978da19d910205c191300c4e919dc3bd89e1a52339f514dc1be9550b19",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 6545,
+    "price_source": "calc",
+    "title": "Chery Arrizo 8"
+  },
+  "nsk:car5757": {
+    "city": "Новосибирск",
+    "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 6171,
+    "price_source": "calc",
+    "title": "Haval Jolion 4WD"
+  },
+  "nsk:car6312": {
+    "city": "Новосибирск",
+    "fingerprint": "1193e9b71585b87215f38a3715e8e9f45f4fb81bf1f73c7bb82c64e9fde35526",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 7777,
+    "price_source": "calc",
+    "title": "Exeed TXL 4WD"
+  },
+  "nsk:car6469": {
+    "city": "Новосибирск",
+    "fingerprint": "a797447b23b98d0cc4da56340213f0d92e048191b7dec3e0755685d5ea68c2bb",
+    "first_seen": "2026-08-15T13:17:17+00:00",
+    "price": 7480,
+    "price_source": "calc",
+    "title": "Changan UNI-V"
+  }
+}
