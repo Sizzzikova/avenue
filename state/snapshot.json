@@ -42,6 +42,12 @@
       "name": "Chery Arrizo 8",
       "old_price": 7700
     },
+    "Новосибирск:5757": {
+      "day_price": 6171,
+      "discount_pct": 15,
+      "name": "Haval Jolion 4WD",
+      "old_price": 7260
+    },
     "Новосибирск:6312": {
       "day_price": 7777,
       "discount_pct": 30,
@@ -53,14 +59,8 @@
       "discount_pct": 15,
       "name": "Changan UNI-V",
       "old_price": 8800
-    },
-    "Новосибирск:9955": {
-      "day_price": 6171,
-      "discount_pct": 15,
-      "name": "Haval Jolion 4WD",
-      "old_price": 7260
     }
   },
-  "fingerprint": "0d4f3b0480d0813b6a23bbabc0ec10f9d2d6c3dab7ecf337c98f5d61289a666a",
-  "posted_at": "2026-08-14T08:10:38+00:00"
+  "fingerprint": "2bff7fe12bf6d1290c62698f7e765ff3bd9697bf820c0a2e5c606242529c2f71",
+  "posted_at": "2026-08-15T07:26:00+00:00"
 }
