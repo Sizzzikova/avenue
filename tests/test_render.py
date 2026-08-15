@@ -1,138 +1,196 @@
-"""Сборка дайджеста: лимиты Telegram, экранирование, порядок городов."""
-from dataclasses import replace
-from datetime import date
+"""Формат поста: лимиты длины, экранирование, состав строк."""
 
-import pytest
+from __future__ import annotations
 
-from avenue_bot import config as config_module, state
-from avenue_bot.models import Car
+import dataclasses
+
 from avenue_bot.render import (
-    build_digest, caption_length, car_line, format_date, format_price,
+    TELEGRAM_CAPTION_LIMIT,
+    TELEGRAM_MESSAGE_LIMIT,
+    format_date,
+    format_price,
+    render_digest_max,
+    render_digest_telegram,
+    render_max,
+    render_telegram,
 )
 
-CFG = config_module.load()
-TODAY = date(2026, 8, 13)
+
+def test_post_contains_city_car_price_and_link(promo):
+    text = render_telegram(promo)
+    assert "Новосибирске" in text
+    assert "Toyota Camry 70" in text
+    assert "7 000 ₽/сут" in text
+    assert text.rstrip().endswith(promo.url)
 
 
-def car(city="Новосибирск", car_id="6312", name="Exeed TXL 4WD", **kwargs):
-    defaults = dict(
-        url=f"https://avenuerent.ru/autopark/cars/{car_id}/",
-        image_url=f"https://avenuerent.ru/upload/{car_id}.webp",
-        base_price=8400,
-        day_price=6700,
-        old_price=8400,
-        discount_pct=20,
-    )
-    return Car(city=city, car_id=car_id, name=name, **{**defaults, **kwargs})
+def test_discount_goes_into_headline_and_price(promo):
+    promo = dataclasses.replace(promo, price=7000, old_price=9000, discount_percent=22)
+    text = render_telegram(promo)
+    assert "Скидка 22%" in text
+    assert "вместо 9 000 ₽" in text
 
 
-class TestFormatting:
-    def test_price_uses_non_breaking_space(self):
-        assert format_price(8400) == "8 400 ₽"
-
-    def test_price_of_none_is_empty(self):
-        assert format_price(None) == ""
-
-    @pytest.mark.parametrize("value,expected", [
-        ("2026-12-31", "31.12.2026"),
-        ("", ""),
-        (None, ""),
-        ("скоро", "скоро"),
-    ])
-    def test_date(self, value, expected):
-        assert format_date(value) == expected
+def test_price_line_omitted_without_price(promo):
+    promo = dataclasses.replace(promo, price=None)
+    text = render_telegram(promo)
+    assert "₽" not in text
+    assert promo.url in text
 
 
-class TestCaptionLength:
-    """Telegram считает лимит по видимому тексту в кодовых единицах UTF-16."""
-
-    def test_tags_do_not_count(self):
-        assert caption_length('<a href="https://example.com/очень/длинный">ok</a>') == 2
-
-    def test_entities_count_as_one_character(self):
-        assert caption_length("&amp;") == 1
-
-    def test_emoji_counts_as_two(self):
-        assert caption_length("🚗") == 2
-
-    def test_cyrillic_counts_as_one(self):
-        assert caption_length("Авеню") == 5
+def test_html_special_chars_are_escaped(promo):
+    promo = dataclasses.replace(promo, title="Kia K5 <Luxe> & Co", image_url=None)
+    text = render_telegram(promo)
+    assert "&lt;Luxe&gt;" in text
+    assert "&amp;" in text
+    assert "<Luxe>" not in text
 
 
-class TestCarLine:
-    def test_contains_link_price_and_percent(self):
-        line = car_line(car())
-        assert 'href="https://avenuerent.ru/autopark/cars/6312/"' in line
-        assert "Exeed TXL 4WD" in line
-        assert "<b>6\u00a0700\u00a0₽</b>/сут" in line
-        assert "−20%" in line
-
-    def test_line_starts_with_dash(self):
-        assert car_line(car()).startswith("- ")
-
-    def test_old_price_is_not_shown(self):
-        line = car_line(car(old_price=8400))
-        assert "<s>" not in line
-        assert "8\u00a0400" not in line
-
-    def test_deadline_is_not_shown(self):
-        assert "31.12.2026" not in car_line(car(discount_to="2026-12-31"))
-
-    def test_html_special_chars_are_escaped(self):
-        line = car_line(car(name="Haval H6 <Premium> & Co"))
-        assert "&lt;Premium&gt;" in line and "&amp; Co" in line
-        assert "<Premium>" not in line
+def test_max_text_has_no_html_entities(promo):
+    promo = dataclasses.replace(promo, title="Kia K5 <Luxe> & Co")
+    text = render_max(promo)
+    assert "<Luxe> & Co" in text
+    assert "&amp;" not in text
 
 
-class TestDigest:
-    def test_empty_input_produces_nothing(self):
-        assert build_digest([], CFG, TODAY) == []
+def test_caption_limit_respected_with_photo(promo):
+    promo = dataclasses.replace(promo, title="Автомобиль " * 200)
+    text = render_telegram(promo, with_photo=True)
+    assert len(text) <= TELEGRAM_CAPTION_LIMIT
 
-    def test_single_post_for_seven_cars(self):
-        cars = [car(car_id=str(i)) for i in range(7)]
-        posts = build_digest(cars, CFG, TODAY)
-        assert len(posts) == 1
-        assert len(posts[0].images) == 7
 
-    def test_header_has_russian_date(self):
-        posts = build_digest([car()], CFG, TODAY)
-        assert "13 августа" in posts[0].caption
+def test_message_limit_respected_without_photo(promo):
+    promo = dataclasses.replace(promo, title="Автомобиль " * 2000)
+    text = render_telegram(promo, with_photo=False)
+    assert len(text) <= TELEGRAM_MESSAGE_LIMIT
 
-    def test_cities_follow_config_order(self):
-        cars = [
-            car(city="Горно-Алтайск", car_id="1"),
-            car(city="Новосибирск", car_id="2"),
-            car(city="Иркутск", car_id="3"),
-        ]
-        caption = build_digest(cars, CFG, TODAY)[0].caption
-        assert (caption.index("Новосибирск")
-                < caption.index("Иркутск")
-                < caption.index("Горно-Алтайск"))
 
-    def test_caption_never_exceeds_telegram_limit(self):
-        cars = [car(car_id=str(i), name=f"Очень Длинное Название Модели {i}")
-                for i in range(40)]
-        for post in build_digest(cars, CFG, TODAY):
-            assert caption_length(post.caption) <= CFG.caption_limit
+def test_long_post_keeps_link_and_price(promo):
+    """При обрезке первыми выбрасываются необязательные строки, не ссылка."""
+    promo = dataclasses.replace(promo, title="Очень длинное название " * 40)
+    text = render_telegram(promo, with_photo=True)
+    assert len(text) <= TELEGRAM_CAPTION_LIMIT
+    assert promo.url in text
+    assert "7 000 ₽/сут" in text
 
-    def test_album_never_exceeds_photo_limit(self):
-        cars = [car(car_id=str(i)) for i in range(40)]
-        for post in build_digest(cars, CFG, TODAY):
-            assert len(post.images) <= CFG.media_group_limit
 
-    def test_all_cars_survive_the_split(self):
-        cars = [car(car_id=str(i), name=f"Модель {i}") for i in range(40)]
-        posts = build_digest(cars, CFG, TODAY)
-        assert len(posts) > 1
-        rendered = "\n".join(p.caption for p in posts)
-        for c in cars:
-            assert c.name in rendered
+def test_labels_are_shown(promo):
+    promo = dataclasses.replace(promo, labels=["Новинка", "Правый руль"])
+    assert "Новинка, Правый руль" in render_telegram(promo)
 
-    def test_cars_without_photo_still_appear(self):
-        posts = build_digest([car(image_url=None)], CFG, TODAY)
-        assert posts[0].images == []
-        assert "Exeed TXL 4WD" in posts[0].caption
 
-    def test_footer_is_included(self):
-        posts = build_digest([car()], CFG, TODAY)
-        assert CFG.footer in posts[0].caption
+def test_period_line_for_future_range(promo):
+    promo = dataclasses.replace(promo, date_from="2099-03-23", date_to="2099-12-31")
+    text = render_telegram(promo)
+    assert "С 23 марта 2099 по 31 декабря 2099" in text
+
+
+def test_period_line_hides_past_start(promo):
+    """Если скидка уже идёт, «с такого-то числа» читателю не нужно."""
+    promo = dataclasses.replace(promo, date_from="2020-01-01", date_to="2099-12-31")
+    text = render_telegram(promo)
+    assert "Действует до 31 декабря 2099" in text
+    assert "2020" not in text
+
+
+def test_no_period_line_without_dates(promo):
+    assert "📅" not in render_telegram(promo)
+
+
+def test_format_price_uses_thin_grouping():
+    assert format_price(1234567) == "1 234 567"
+    assert format_price(None) == ""
+
+
+def test_format_date_variants():
+    assert format_date("2026-12-31") == "31 декабря 2026"
+    assert format_date(None) is None
+    assert format_date("скоро") == "скоро"
+    assert format_date("2026-13-01") == "2026-13-01"
+
+
+def test_same_promo_renders_identically(promo):
+    """Выбор УТП детерминированный — повторный прогон даёт тот же текст."""
+    assert render_telegram(promo) == render_telegram(promo)
+
+
+# --- дайджест: один пост со всеми изменениями за сутки ---
+
+
+def _promos(promo, count, city="Новосибирск"):
+    return [
+        dataclasses.replace(
+            promo,
+            title=f"Авто {index}",
+            url=f"https://avenuerent.ru/autopark/cars/car{index}/",
+            city_name=city,
+            city_promos_url="https://avenuerent.ru/aktcii/",
+        )
+        for index in range(count)
+    ]
+
+
+def test_digest_lists_every_car(promo):
+    text = render_digest_telegram(_promos(promo, 3), [])
+    for index in range(3):
+        assert f"Авто {index}" in text
+        assert f"car{index}/" in text
+
+
+def test_digest_groups_cars_by_city(promo):
+    new = _promos(promo, 2) + _promos(promo, 1, city="Иркутск")
+    text = render_digest_telegram(new, [])
+    assert "📍 Новосибирск" in text
+    assert "📍 Иркутск" in text
+
+
+def test_digest_shows_previous_price_for_cheaper_cars(promo):
+    cheaper = dataclasses.replace(promo, price=5900, previous_price=7000)
+    text = render_digest_telegram([], [cheaper])
+    assert "Обновились цены" not in text  # заголовок сам про снижение
+    assert "Цены снизились" in text
+    assert "5 900 ₽/сут — было 7 000 ₽" in text
+
+
+def test_digest_separates_new_and_cheaper(promo):
+    cheaper = dataclasses.replace(promo, title="Старое авто", price=5900, previous_price=7000)
+    text = render_digest_telegram(_promos(promo, 1), [cheaper])
+    assert "Что нового" in text
+    assert "💰 Обновились цены" in text
+    assert text.index("Авто 0") < text.index("Обновились цены")
+
+
+def test_digest_links_to_promos_page_for_one_city(promo):
+    text = render_digest_telegram(_promos(promo, 2), [])
+    assert "👉 Все акции: https://avenuerent.ru/aktcii/" in text
+
+
+def test_digest_omits_promos_link_for_several_cities(promo):
+    """Одна ссылка «все акции» на несколько городов увела бы не туда."""
+    new = _promos(promo, 1) + [
+        dataclasses.replace(
+            promo,
+            city_name="Иркутск",
+            url="https://irkutsk.avenuerent.ru/autopark/cars/car1/",
+            city_promos_url="https://irkutsk.avenuerent.ru/aktcii/",
+        )
+    ]
+    assert "Все акции" not in render_digest_telegram(new, [])
+
+
+def test_digest_respects_message_limit(promo):
+    text = render_digest_telegram(_promos(promo, 300), [])
+    assert len(text) <= TELEGRAM_MESSAGE_LIMIT
+    assert "И ещё" in text
+
+
+def test_digest_escapes_html(promo):
+    hacky = dataclasses.replace(promo, title="Kia <b>K5</b> & Co")
+    text = render_digest_telegram([hacky], [])
+    assert "&lt;b&gt;" in text
+    assert "<b>" not in text
+
+
+def test_digest_for_max_has_no_entities(promo):
+    hacky = dataclasses.replace(promo, title="Kia K5 & Co")
+    assert "&amp;" not in render_digest_max([hacky], [])

@@ -1,77 +1,132 @@
 """Чтение config.yml и секретов из переменных окружения.
 
-Секреты НИКОГДА не хранятся в репозитории — только в GitHub Secrets,
-откуда workflow пробрасывает их в окружение процесса.
+Токены никогда не читаются из файлов конфигурации: репозиторий публичный,
+секреты приходят только через окружение (GitHub Secrets).
 """
+
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
+from typing import Any
 
 import yaml
 
+# Корень проекта: .../avenue-promo-bot
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_CONFIG = PROJECT_ROOT / "config.yml"
-DEFAULT_STATE = PROJECT_ROOT / "state" / "snapshot.json"
+DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yml"
 
 
 @dataclass(frozen=True)
 class City:
+    key: str
     name: str
+    name_in: str
     base_url: str
+    promos_path: str
+
+    @property
+    def promos_url(self) -> str:
+        return self.base_url.rstrip("/") + self.promos_path
+
+
+@dataclass(frozen=True)
+class Secrets:
+    telegram_bot_token: str | None
+    telegram_chat_id: str | None
+    telegram_admin_chat_id: str | None
+    max_bot_token: str | None
+    max_chat_id: str | None
+
+    @classmethod
+    def from_env(cls) -> "Secrets":
+        def get(name: str) -> str | None:
+            value = os.environ.get(name, "").strip()
+            return value or None
+
+        return cls(
+            telegram_bot_token=get("TELEGRAM_BOT_TOKEN"),
+            telegram_chat_id=get("TELEGRAM_CHAT_ID"),
+            telegram_admin_chat_id=get("TELEGRAM_ADMIN_CHAT_ID"),
+            max_bot_token=get("MAX_BOT_TOKEN"),
+            max_chat_id=get("MAX_CHAT_ID"),
+        )
 
 
 @dataclass(frozen=True)
 class Config:
-    cities: list[City]
-    promos_path: str
-    price_ajax_path: str
-    selectors: dict[str, str]
-    footer: str
-    telegram_enabled: bool
-    media_group_limit: int
-    caption_limit: int
-    max_enabled: bool
-    max_api_base: str
-
-    # Секреты (пустые строки, если не заданы).
-    telegram_token: str = field(default="", repr=False)
-    telegram_chat_id: str = ""
-    telegram_admin_chat_id: str = ""
-    max_token: str = field(default="", repr=False)
-    max_chat_id: str = ""
-
-    def promos_url(self, city: City) -> str:
-        return f"{city.base_url.rstrip('/')}{self.promos_path}"
-
-    def price_url(self, city: City) -> str:
-        return f"{city.base_url.rstrip('/')}{self.price_ajax_path}"
+    raw: dict[str, Any]
+    path: Path
 
     @property
-    def telegram_ready(self) -> bool:
-        return bool(self.telegram_enabled and self.telegram_token and self.telegram_chat_id)
+    def cities(self) -> list[City]:
+        return [
+            City(
+                key=item["key"],
+                name=item["name"],
+                name_in=item.get("name_in", item["name"]),
+                base_url=item["base_url"],
+                promos_path=item.get("promos_path", "/aktcii/"),
+            )
+            for item in self.raw["cities"]
+        ]
+
+    @property
+    def selectors(self) -> dict[str, str]:
+        return self.raw["selectors"]
+
+    @property
+    def http(self) -> dict[str, Any]:
+        return self.raw.get("http", {})
+
+    @property
+    def prices(self) -> dict[str, Any]:
+        return self.raw.get("prices", {})
+
+    @property
+    def messengers(self) -> dict[str, Any]:
+        return self.raw.get("messengers", {})
+
+    @property
+    def state_path(self) -> Path:
+        configured = Path(self.raw.get("state", {}).get("path", "state/seen.json"))
+        if configured.is_absolute():
+            return configured
+        return PROJECT_ROOT / configured
+
+    @property
+    def post(self) -> dict[str, Any]:
+        return self.raw.get("post", {})
+
+    @property
+    def post_mode(self) -> str:
+        """digest — один пост со всеми изменениями, separate — пост на каждое авто."""
+        mode = str(self.post.get("mode", "digest")).strip().lower()
+        if mode not in {"digest", "separate"}:
+            raise ValueError(
+                f"post.mode должен быть digest или separate, а не {mode!r}"
+            )
+        return mode
+
+    @property
+    def include_changes(self) -> bool:
+        """Считать ли изменением подешевевшее авто, а не только новое."""
+        return bool(self.post.get("include_changes", True))
+
+    @property
+    def price_drop_percent(self) -> float:
+        """На сколько процентов должна упасть цена, чтобы это стало поводом для поста."""
+        value = float(self.post.get("price_drop_percent", 5))
+        if value <= 0:
+            raise ValueError("post.price_drop_percent должен быть больше нуля")
+        return value
 
 
-def load(path: Optional[Path] = None) -> Config:
-    raw = yaml.safe_load((path or DEFAULT_CONFIG).read_text(encoding="utf-8"))
-    tg = raw.get("telegram", {})
-    mx = raw.get("max", {})
-    return Config(
-        cities=[City(name=c["name"], base_url=c["base_url"]) for c in raw["cities"]],
-        promos_path=raw["promos_path"],
-        price_ajax_path=raw["price_ajax_path"],
-        selectors=raw["selectors"],
-        footer=raw.get("footer", ""),
-        telegram_enabled=bool(tg.get("enabled", False)),
-        media_group_limit=int(tg.get("media_group_limit", 10)),
-        caption_limit=int(tg.get("caption_limit", 1024)),
-        max_enabled=bool(mx.get("enabled", False)),
-        max_api_base=mx.get("api_base", ""),
-        telegram_token=os.environ.get("TELEGRAM_BOT_TOKEN", ""),
-        telegram_chat_id=os.environ.get("TELEGRAM_CHAT_ID", ""),
-        telegram_admin_chat_id=os.environ.get("TELEGRAM_ADMIN_CHAT_ID", ""),
-        max_token=os.environ.get("MAX_BOT_TOKEN", ""),
-        max_chat_id=os.environ.get("MAX_CHAT_ID", ""),
-    )
+def load_config(path: str | Path | None = None) -> Config:
+    config_path = Path(path) if path else DEFAULT_CONFIG_PATH
+    with open(config_path, encoding="utf-8") as handle:
+        raw = yaml.safe_load(handle)
+    if not raw or "cities" not in raw:
+        raise ValueError(f"Конфиг {config_path} пустой или без секции cities")
+    return Config(raw=raw, path=config_path)

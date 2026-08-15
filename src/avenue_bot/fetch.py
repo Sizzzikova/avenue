@@ -1,79 +1,78 @@
-"""HTTP-слой: браузерный User-Agent, таймауты, ретраи с нарастающей паузой."""
+"""HTTP-слой: таймауты, ретраи с экспоненциальной паузой, браузерный User-Agent."""
+
 from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
+from typing import Any
 
 import httpx
 
 log = logging.getLogger(__name__)
 
-# Сайт на Bitrix и на «голый» питоновский User-Agent может ответить иначе,
-# чем браузеру, поэтому представляемся обычным Chrome.
-USER_AGENT = (
+DEFAULT_USER_AGENT = (
     "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-    "(KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+    "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36"
 )
-TIMEOUT = httpx.Timeout(20.0, connect=10.0)
-RETRY_DELAYS = (2, 4, 8)
 
 
 class FetchError(RuntimeError):
-    """Страница или эндпоинт недоступны после всех попыток."""
+    """Страница не отдалась после всех попыток."""
 
 
-def make_client() -> httpx.Client:
-    return httpx.Client(
-        timeout=TIMEOUT,
-        follow_redirects=True,
-        headers={
-            "User-Agent": USER_AGENT,
-            "Accept-Language": "ru-RU,ru;q=0.9",
-        },
-    )
-
-
-def _with_retries(what: str, call) -> httpx.Response:
-    last: Optional[Exception] = None
-    for attempt, delay in enumerate((*RETRY_DELAYS, None)):
-        try:
-            response = call()
-            response.raise_for_status()
-            return response
-        except Exception as exc:  # noqa: BLE001 — ретраим любую сетевую/HTTP-ошибку
-            last = exc
-            if delay is None:
-                break
-            log.warning("%s: попытка %d не удалась (%s), повтор через %ds",
-                        what, attempt + 1, exc, delay)
-            time.sleep(delay)
-    raise FetchError(f"{what}: не удалось получить ответ ({last})") from last
-
-
-def get_page(client: httpx.Client, url: str) -> str:
-    """Скачать HTML страницы со спецценами."""
-    response = _with_retries(f"GET {url}", lambda: client.get(url))
-    return response.text
-
-
-def get_price(client: httpx.Client, url: str, car_id: str) -> Optional[dict]:
-    """Спросить у сайта актуальную цену машины.
-
-    Возвращает разобранный JSON или None, если эндпоинт ответил не-JSON
-    (например, отдал HTML-заглушку). Отсутствие цены не должно ронять весь
-    прогон — машина просто уйдёт в дайджест без скидки и будет отфильтрована.
-    """
-    try:
-        response = _with_retries(
-            f"POST {url} (id={car_id})",
-            lambda: client.post(url, files={"id": (None, car_id)}),
+class Fetcher:
+    def __init__(self, http_config: dict[str, Any] | None = None) -> None:
+        config = http_config or {}
+        self.timeout = float(config.get("timeout_seconds", 30))
+        self.retries = int(config.get("retries", 3))
+        self.backoff = float(config.get("backoff_seconds", 2))
+        self.user_agent = config.get("user_agent") or DEFAULT_USER_AGENT
+        self._client = httpx.Client(
+            timeout=self.timeout,
+            follow_redirects=True,
+            headers={
+                "User-Agent": self.user_agent,
+                "Accept-Language": "ru-RU,ru;q=0.9",
+                "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+            },
         )
-    except FetchError as exc:
-        log.warning("цена для id=%s не получена: %s", car_id, exc)
-        return None
-    try:
+
+    def __enter__(self) -> "Fetcher":
+        return self
+
+    def __exit__(self, *exc_info: object) -> None:
+        self.close()
+
+    def close(self) -> None:
+        self._client.close()
+
+    def get_text(self, url: str) -> str:
+        """Скачать страницу. Бросает FetchError, если все попытки провалились."""
+        response = self._request("GET", url)
+        return response.text
+
+    def post_json(self, url: str, data: dict[str, Any]) -> Any:
+        """POST формы с разбором JSON-ответа."""
+        response = self._request("POST", url, data=data)
         return response.json()
-    except ValueError:
-        log.warning("цена для id=%s: ответ не JSON (%r...)", car_id, response.text[:120])
-        return None
+
+    def _request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
+        last_error: Exception | None = None
+        for attempt in range(1, self.retries + 1):
+            try:
+                response = self._client.request(method, url, **kwargs)
+                response.raise_for_status()
+                return response
+            except (httpx.HTTPError, httpx.StreamError) as error:
+                last_error = error
+                log.warning(
+                    "%s %s — попытка %s/%s не удалась: %s",
+                    method,
+                    url,
+                    attempt,
+                    self.retries,
+                    error,
+                )
+                if attempt < self.retries:
+                    time.sleep(self.backoff * (2 ** (attempt - 1)))
+        raise FetchError(f"{method} {url}: не удалось получить ответ ({last_error})")
