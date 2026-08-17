@@ -27,6 +27,7 @@
     "city": "Иркутск",
     "fingerprint": "c07359f5491685ea01b8775baf7ac91063660a633d4b9c411cb8bb76ca8640f7",
     "first_seen": "2026-08-15T13:17:17+00:00",
+    "pending_drop": 3825,
     "price": 4050,
     "price_source": "calc",
     "title": "Nissan Roox"
