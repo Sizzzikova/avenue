@@ -25,8 +25,9 @@ class RecordingAlerter:
 class FakeFetcher:
     """Подменяет сеть: отдаёт заранее заданный HTML или бросает ошибку."""
 
-    def __init__(self, pages):
+    def __init__(self, pages, prices_broken=False):
         self.pages = pages
+        self.prices_broken = prices_broken
 
     def __enter__(self):
         return self
@@ -43,7 +44,20 @@ class FakeFetcher:
         return page
 
     def post_json(self, url, data):
-        raise FetchError("цены в тестах не запрашиваем")
+        """Ответ калькулятора цен — как у настоящего сайта.
+
+        Скидка детерминированная, от id автомобиля: 10, 15 или 20 процентов.
+        Без неё акции не попадают в пост, и проверять было бы нечего.
+        """
+        if self.prices_broken:
+            raise FetchError("калькулятор не отвечает")
+        car_id = int(data["id"])
+        original = 4000 + car_id % 5000
+        percent = (10, 15, 20)[car_id % 3]
+        return {
+            "dayPrice": round(original * (100 - percent) / 100),
+            "originalPrice": original,
+        }
 
 
 @pytest.fixture

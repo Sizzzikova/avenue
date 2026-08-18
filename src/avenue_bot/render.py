@@ -13,8 +13,6 @@ from __future__ import annotations
 
 import hashlib
 import html
-import re
-from datetime import date
 
 from .models import Promo
 
@@ -23,10 +21,6 @@ from .models import Promo
 TELEGRAM_MESSAGE_LIMIT = 4096
 TELEGRAM_CAPTION_LIMIT = 1024
 
-MONTHS_GENITIVE = [
-    "января", "февраля", "марта", "апреля", "мая", "июня",
-    "июля", "августа", "сентября", "октября", "ноября", "декабря",
-]
 
 # УТП чередуются, чтобы посты подряд не выглядели под копирку.
 # Выбор детерминированный (по ссылке на авто) — повторный прогон даёт тот же текст.
@@ -38,25 +32,6 @@ USP_LINES = [
 ]
 
 
-def format_price(value: int | None) -> str:
-    if value is None:
-        return ""
-    return f"{value:,}".replace(",", " ")
-
-
-def format_date(value: str | None) -> str | None:
-    """2026-12-31 -> «31 декабря 2026». Неразобранное значение возвращаем как есть."""
-    if not value:
-        return None
-    match = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", value.strip())
-    if not match:
-        return value.strip()
-    year, month, day = (int(part) for part in match.groups())
-    if not 1 <= month <= 12:
-        return value.strip()
-    return f"{day} {MONTHS_GENITIVE[month - 1]} {year}"
-
-
 def _link(text: str, url: str, esc, html_links: bool) -> str:
     """Текст со вшитой ссылкой. Без поддержки разметки — просто текст."""
     if not html_links:
@@ -64,67 +39,11 @@ def _link(text: str, url: str, esc, html_links: bool) -> str:
     return f'<a href="{html.escape(url, quote=True)}">{esc(text)}</a>'
 
 
-def _period_line(promo: Promo, today: date | None = None) -> str | None:
-    """Строка со сроками действия скидки."""
-    today = today or date.today()
-    start_raw, end_raw = promo.date_from, promo.date_to
-    start, end = format_date(start_raw), format_date(end_raw)
-
-    # Если скидка уже началась, «с такого-то» читателю не нужно.
-    if start and _parse_iso(start_raw) and _parse_iso(start_raw) <= today:
-        start = None
-
-    if start and end:
-        return f"📅 С {start} по {end}"
-    if end:
-        return f"📅 Действует до {end}"
-    if start:
-        return f"📅 Стартует {start}"
-    return None
-
-
-def _parse_iso(value: str | None) -> date | None:
-    if not value:
+def _discount_line(promo: Promo) -> str | None:
+    """Размер скидки словами. Сумм в постах нет — они есть на сайте."""
+    if not promo.discount_percent:
         return None
-    try:
-        return date.fromisoformat(value.strip())
-    except ValueError:
-        return None
-
-
-def _specs_line(promo: Promo) -> str | None:
-    parts = []
-    if promo.drive:
-        parts.append(f"{promo.drive} привод")
-    if promo.transmission:
-        parts.append(promo.transmission)
-    if promo.engine:
-        parts.append(promo.engine)
-    if promo.power:
-        parts.append(promo.power)
-    return "⚙️ " + ", ".join(parts) if parts else None
-
-
-def _car_tail(promo: Promo) -> str:
-    """Хвост названия: кузов и год."""
-    return ", ".join(part for part in (promo.body_type, promo.year) if part)
-
-
-def _car_line(promo: Promo) -> str:
-    """Название автомобиля без разметки — для логов и dry-run."""
-    tail = _car_tail(promo)
-    return f"{promo.title} — {tail}" if tail else promo.title
-
-
-def _price_line(promo: Promo) -> str | None:
-    if promo.price is None:
-        return None
-    price = f"💰 {format_price(promo.price)} ₽/сут"
-    if promo.old_price and promo.old_price > promo.price:
-        price += f" вместо {format_price(promo.old_price)} ₽"
-    if promo.discount_percent:
-        price += f" — скидка {promo.discount_percent}%"
-    return price
+    return f"скидка {promo.discount_percent}%"
 
 
 def _usp_line(promo: Promo) -> str:
@@ -141,9 +60,8 @@ def _headline(promo: Promo) -> str:
 def _assemble(promo: Promo, limit: int, escape: bool, html_links: bool) -> str:
     """Собрать пост, укладываясь в лимит.
 
-    Если текст не влезает, сначала отбрасываются необязательные строки
-    (сперва УТП, затем характеристики), и только потом режется название
-    автомобиля — заголовок, цена и ссылка остаются всегда.
+    Если текст не влезает, сначала отбрасывается строка с УТП, и только потом
+    режется название автомобиля — заголовок и ссылка остаются всегда.
 
     Название режется до того, как вокруг него оборачивается тег ссылки:
     иначе обрезка разорвала бы <a href=...> и Telegram отказался бы принять
@@ -153,22 +71,13 @@ def _assemble(promo: Promo, limit: int, escape: bool, html_links: bool) -> str:
     def esc(value: str) -> str:
         return html.escape(value, quote=False) if escape else value
 
-    def compose(title: str, keep_specs: bool, keep_usp: bool) -> str:
-        name = _link(title, promo.url, esc, html_links)
-        tail = _car_tail(promo)
-        car_block = f"{name} — {esc(tail)}" if tail else name
+    def compose(title: str, keep_usp: bool) -> str:
+        # Размер скидки уже назван в заголовке, второй раз повторять незачем.
+        car_block = _link(title, promo.url, esc, html_links)
         if promo.labels:
             car_block += f"\n🏷 {esc(', '.join(promo.labels))}"
 
         blocks = [esc(_headline(promo)), car_block]
-
-        specs = _specs_line(promo)
-        if keep_specs and specs:
-            blocks.append(esc(specs))
-
-        facts = [line for line in (_price_line(promo), _period_line(promo)) if line]
-        if facts:
-            blocks.append("\n".join(esc(line) for line in facts))
 
         if keep_usp:
             blocks.append(esc(_usp_line(promo)))
@@ -176,15 +85,15 @@ def _assemble(promo: Promo, limit: int, escape: bool, html_links: bool) -> str:
         blocks.append(_cta(promo, esc, html_links))
         return "\n\n".join(blocks)
 
-    for keep_specs, keep_usp in ((True, True), (True, False), (False, False)):
-        text = compose(promo.title, keep_specs, keep_usp)
+    for keep_usp in (True, False):
+        text = compose(promo.title, keep_usp)
         if len(text) <= limit:
             return text
 
     # Остались одни обязательные блоки — укорачиваем название автомобиля.
     title = promo.title
     for _ in range(40):
-        text = compose(title, keep_specs=False, keep_usp=False)
+        text = compose(title, keep_usp=False)
         if len(text) <= limit:
             return text
         shorter = _truncate(title, len(text) - limit)
@@ -212,35 +121,24 @@ def _truncate(text: str, overflow: int) -> str:
 
 
 def _digest_item(promo: Promo, esc, changed: bool, html_links: bool) -> str:
-    """Одна позиция дайджеста: название со ссылкой и цена."""
+    """Одна позиция дайджеста: название со ссылкой и размер скидки.
+
+    Ни года, ни характеристик, ни цен: пост — это витрина-тизер, а подробности
+    ждут по ссылке. Цены к тому же меняются, и обещать их в канале не стоит.
+    """
     name = _link(promo.title, promo.url, esc, html_links)
-    tail = _car_tail(promo)
-    head = f"• {name} — {esc(tail)}" if tail else f"• {name}"
 
-    price = ""
-    if promo.price is not None:
-        price = f"{format_price(promo.price)} ₽/сут"
-        if changed and promo.previous_price and promo.previous_price > promo.price:
-            # В блоке «обновились цены» процент считается от прошлой цены, а не
-            # от базовой ставки сайта: иначе рядом с «было 4 050 ₽» стоял бы
-            # процент от совсем другого числа и читался бы как ошибка.
-            drop = round((1 - promo.price / promo.previous_price) * 100)
-            price += f" — было {format_price(promo.previous_price)} ₽"
-            if drop:
-                price += f" (−{drop}%)"
-        else:
-            if promo.old_price and promo.old_price > promo.price:
-                price += f" вместо {format_price(promo.old_price)} ₽"
-            if promo.discount_percent:
-                price += f" (−{promo.discount_percent}%)"
+    if changed and promo.previous_price and promo.price and promo.previous_price > promo.price:
+        drop = round((1 - promo.price / promo.previous_price) * 100)
+        note = f"подешевел на {drop}%" if drop else None
+    else:
+        note = _discount_line(promo)
 
-    lines = [head]
-    if price:
-        lines.append(f"  {esc(price)}")
+    line = f"• {name} — {esc(note)}" if note else f"• {name}"
     if not html_links:
         # Разметки нет — адрес приходится печатать отдельной строкой.
-        lines.append(f"  {esc(promo.url)}")
-    return "\n".join(lines)
+        line += f"\n  {esc(promo.url)}"
+    return line
 
 
 def _group_by_city(promos: list[Promo]) -> dict[str, list[Promo]]:

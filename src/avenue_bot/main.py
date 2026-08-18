@@ -474,6 +474,34 @@ def run(args: argparse.Namespace) -> int:
     )
 
 
+def _only_with_discount(
+    new: list[Promo], changed: list[Promo]
+) -> tuple[list[Promo], list[Promo]]:
+    """Оставить то, о чём есть что сказать: у каждой строки поста свой процент.
+
+    Автомобиль без скидки в канал не идёт — рассказывать про него нечего.
+    Такие акции намеренно НЕ помечаются виденными: на странице /aktcii/ скидка
+    есть у всех, и её отсутствие обычно значит, что калькулятор сайта не
+    ответил. На следующем прогоне попробуем ещё раз, а не потеряем машину
+    насовсем.
+    """
+    kept_new = [promo for promo in new if promo.discount_percent]
+    if len(kept_new) != len(new):
+        log.info(
+            "Без скидки, в пост не идут: %s",
+            ", ".join(p.title for p in new if not p.discount_percent),
+        )
+
+    kept_changed = []
+    for promo in changed:
+        if not promo.previous_price or not promo.price:
+            continue
+        if round((1 - promo.price / promo.previous_price) * 100) >= 1:
+            kept_changed.append(promo)
+
+    return kept_new, kept_changed
+
+
 def _finish_run(
     args: argparse.Namespace,
     config: Config,
@@ -487,6 +515,8 @@ def _finish_run(
     exit_code: int,
 ) -> int:
     """Показать, отправить и записать — общий хвост для run и announce."""
+    new, changed = _only_with_discount(new, changed)
+
     if args.mode == "dry-run":
         _print_dry_run(config, new, changed, total)
         alerter.close()
