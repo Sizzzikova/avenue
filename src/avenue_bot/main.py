@@ -210,6 +210,34 @@ def _delay_for(sender, config: Config) -> float:
     return float(config.messengers.get(sender.name, {}).get("delay_seconds", 1.0))
 
 
+def _guard(
+    args: argparse.Namespace, config: Config, alerter: Alerter, reason: str
+) -> bool:
+    """Предупредить о подозрительном прогоне. True — публиковать нельзя.
+
+    Смысл проверки в том, чтобы подписчики не получили залп из всех акций
+    разом. Когда включено согласование, залпа быть не может: пост всё равно
+    сначала приходит в рабочий чат под кнопки, и человек решает сам. Поэтому
+    там мы не останавливаемся, а просто предупреждаем.
+    """
+    if args.allow_empty_state:
+        log.warning("%s\n(разрешено флагом --allow-empty-state)", reason)
+        return False
+
+    if config.moderation_enabled:
+        alerter.notify(
+            reason + "\n\nПост НЕ опубликован — он отправлен в этот чат "
+            "на согласование. Посмотрите его и решите кнопками: «Публиковать», "
+            "если так и надо, «Не публиковать», если это сбой."
+        )
+        return False
+
+    alerter.notify(
+        reason + "\n\nПубликация остановлена, иначе в канал ушли бы все сразу."
+    )
+    return True
+
+
 def run(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     secrets = Secrets.from_env()
@@ -261,25 +289,20 @@ def run(args: argparse.Namespace) -> int:
             len(all_promos), alerter, exit_code,
         )
 
-    # Состояние пустое, а мы в боевом режиме — значит seed не делали или
-    # state/seen.json потерялся (например, workflow не смог его закоммитить).
-    # Публиковать нельзя: в канал уйдут разом все действующие акции.
-    if args.mode == "run" and not state.data and all_promos and not args.allow_empty_state:
-        alerter.notify(
-            f"Состояние пустое ({config.state_path}), а на сайте {len(all_promos)} акций. "
-            "Публикация остановлена, иначе в канал ушли бы все сразу.\n\n"
-            "ЧТО СДЕЛАТЬ: запустить workflow «Акции Авеню» в режиме seed "
-            "(Actions → Run workflow → mode: seed). Он запомнит текущие акции, "
-            "ничего не публикуя, и дальше всё пойдёт само.\n\n"
-            "Если seed уже делали, значит в прошлый раз не сохранился "
-            "state/seen.json — посмотрите шаг «Сохранить состояние» в последнем "
-            "прогоне Actions.\n\n"
-            "Опубликовать все акции разом можно намеренно: режим run с галочкой "
-            "«Разрешить работу при пустом состоянии» (в командной строке — "
-            "флаг --allow-empty-state)."
-        )
-        alerter.close()
-        return 1
+    # Состояние пустое — значит seed не делали или state/seen.json потерялся
+    # (например, workflow не смог его закоммитить). Все акции выглядят новыми.
+    if args.mode == "run" and not state.data and all_promos:
+        if _guard(args, config, alerter,
+                  f"Состояние пустое ({config.state_path}), а на сайте "
+                  f"{len(all_promos)} акций — все выглядят новыми.\n\n"
+                  "Если seed уже делали, значит в прошлый раз не сохранился "
+                  "state/seen.json: посмотрите шаг «Сохранить состояние» в "
+                  "последнем прогоне Actions.\n\n"
+                  "ЧТО СДЕЛАТЬ, если публиковать всё не нужно: прогнать workflow "
+                  "в режиме seed (Actions → Run workflow → mode: seed) — он "
+                  "запомнит текущие акции, ничего не публикуя."):
+            alerter.close()
+            return 1
 
     state.migrate_keys(all_promos)
     new, changed = split_promos(
@@ -288,26 +311,17 @@ def run(args: argparse.Namespace) -> int:
 
     # Состояние не пустое, но новыми оказались вообще все акции — так не бывает.
     # Обычно это значит, что на сайте поменялись адреса или id автомобилей и
-    # бот перестал узнавать старые записи. Публиковать нельзя: получится залп.
-    if (
-        args.mode == "run"
-        and state.data
-        and len(all_promos) > 1
-        and len(new) == len(all_promos)
-        and not args.allow_empty_state
-    ):
-        alerter.notify(
-            f"Новыми оказались сразу все {len(all_promos)} акций, хотя состояние "
-            "не пустое. Публикация остановлена, иначе в канал ушёл бы залп.\n\n"
-            "Похоже, на сайте изменились адреса или id автомобилей, и бот перестал "
-            "узнавать сохранённые записи.\n\n"
-            "ЧТО СДЕЛАТЬ: посмотреть страницу акций и прогнать workflow в режиме "
-            "seed заново (Actions → Run workflow → mode: seed).\n\n"
-            "Если обновился действительно весь автопарк и опубликовать нужно всё, "
-            "запустите режим run с галочкой «Разрешить работу при пустом состоянии»."
-        )
-        alerter.close()
-        return 1
+    # бот перестал узнавать старые записи.
+    if args.mode == "run" and state.data and len(all_promos) > 1 and len(new) == len(all_promos):
+        if _guard(args, config, alerter,
+                  f"Новыми оказались сразу все {len(all_promos)} акций, хотя "
+                  "состояние не пустое.\n\n"
+                  "Похоже, на сайте изменились адреса или id автомобилей, и бот "
+                  "перестал узнавать сохранённые записи.\n\n"
+                  "ЧТО СДЕЛАТЬ, если публиковать всё не нужно: посмотреть страницу "
+                  "акций и прогнать workflow в режиме seed заново."):
+            alerter.close()
+            return 1
 
     return _finish_run(
         args, config, secrets, state, ok_results, new, changed,

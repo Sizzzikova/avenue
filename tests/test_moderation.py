@@ -276,3 +276,42 @@ def test_announce_refreshes_remembered_prices(moderated):
         _run("run")
 
     assert FakeReviewer.instances == []
+
+
+def test_empty_state_still_prepares_a_draft_when_moderation_is_on(moderated):
+    """Пустая память при согласовании — не повод молчать.
+
+    Залпа подписчикам всё равно не будет: пост уйдёт в рабочий чат под кнопки,
+    и человек решит сам. Поэтому вместо отказа бот готовит черновик.
+    """
+    config, tmp_path = moderated
+    channel = FakeSender()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(main_module, "build_senders", lambda *_: [channel])
+        code = _run("run", allow_empty_state=False)
+
+    assert code == 0
+    reviewer = FakeReviewer.instances[-1]
+    assert len(reviewer.reviewed) == 1
+    assert reviewer.reviewed[0][0].count("<a href=") >= 7  # все акции в посте
+    assert channel.posts == 0  # но в канал ничего не ушло
+
+
+def test_wiping_memory_brings_back_a_post_with_current_prices(moderated):
+    """Стёрли state/seen.json — и следующий прогон снова покажет всю витрину."""
+    config, tmp_path = moderated
+    channel = FakeSender()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(main_module, "build_senders", lambda *_: [channel])
+        _run("seed")
+
+        FakeReviewer.instances.clear()
+        _run("run")
+        assert FakeReviewer.instances == []  # память полна, говорить не о чем
+
+        (tmp_path / "seen.json").write_text("{}", encoding="utf-8")
+        _run("run", allow_empty_state=False)
+
+    assert len(FakeReviewer.instances[-1].reviewed) == 1
