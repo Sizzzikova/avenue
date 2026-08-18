@@ -35,6 +35,8 @@ class City:
 class Secrets:
     telegram_bot_token: str | None
     telegram_chat_id: str | None
+    # Он же чат согласования: посты с кнопками и алерты о поломках идут
+    # в одно место — это рабочий чат, разделять его незачем.
     telegram_admin_chat_id: str | None
     max_bot_token: str | None
     max_chat_id: str | None
@@ -94,6 +96,27 @@ class Config:
         if configured.is_absolute():
             return configured
         return PROJECT_ROOT / configured
+
+    @property
+    def pending_path(self) -> Path:
+        configured = Path(
+            self.raw.get("state", {}).get("pending_path", "state/pending.json")
+        )
+        if configured.is_absolute():
+            return configured
+        return PROJECT_ROOT / configured
+
+    @property
+    def moderation(self) -> dict[str, Any]:
+        return self.raw.get("moderation", {})
+
+    @property
+    def moderation_enabled(self) -> bool:
+        return bool(self.moderation.get("enabled", False))
+
+    @property
+    def moderation_expire_hours(self) -> int:
+        return int(self.moderation.get("expire_hours", 48))
 
     @property
     def post(self) -> dict[str, Any]:

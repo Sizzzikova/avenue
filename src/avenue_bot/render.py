@@ -1,10 +1,12 @@
 """Сборка текста поста из акции.
 
 Тон и структура — по скиллу avenue-content для Telegram: эмодзи-навигация по
-абзацам, один-два УТП, обязательный CTA со ссылкой в конце.
+абзацам, один-два УТП, обязательный CTA в конце.
 
-Телеграм получает разметку HTML, MAX — тот же текст без тегов: у него другая
-разметка, и ради двух жирных слов завязываться на неё не стоит.
+Ссылка на автомобиль вшита в его название: голые адреса в ленте выглядят
+мусорно и занимают место, которого в подписи к фото всего 1024 символа.
+Телеграм получает разметку HTML, MAX — тот же текст без тегов, и там ссылку
+вшить некуда, поэтому для него адрес печатается отдельной строкой.
 """
 
 from __future__ import annotations
@@ -55,6 +57,13 @@ def format_date(value: str | None) -> str | None:
     return f"{day} {MONTHS_GENITIVE[month - 1]} {year}"
 
 
+def _link(text: str, url: str, esc, html_links: bool) -> str:
+    """Текст со вшитой ссылкой. Без поддержки разметки — просто текст."""
+    if not html_links:
+        return esc(text)
+    return f'<a href="{html.escape(url, quote=True)}">{esc(text)}</a>'
+
+
 def _period_line(promo: Promo, today: date | None = None) -> str | None:
     """Строка со сроками действия скидки."""
     today = today or date.today()
@@ -96,8 +105,14 @@ def _specs_line(promo: Promo) -> str | None:
     return "⚙️ " + ", ".join(parts) if parts else None
 
 
+def _car_tail(promo: Promo) -> str:
+    """Хвост названия: кузов и год."""
+    return ", ".join(part for part in (promo.body_type, promo.year) if part)
+
+
 def _car_line(promo: Promo) -> str:
-    tail = ", ".join(part for part in (promo.body_type, promo.year) if part)
+    """Название автомобиля без разметки — для логов и dry-run."""
+    tail = _car_tail(promo)
     return f"{promo.title} — {tail}" if tail else promo.title
 
 
@@ -123,56 +138,71 @@ def _headline(promo: Promo) -> str:
     return f"🔥 Авто со скидкой в {promo.city_name_in}"
 
 
-def _assemble(promo: Promo, limit: int, escape: bool) -> str:
+def _assemble(promo: Promo, limit: int, escape: bool, html_links: bool) -> str:
     """Собрать пост, укладываясь в лимит.
 
-    Блоки перечислены от обязательных к необязательным: если текст не влезает,
-    отбрасываются последние по приоритету, а заголовок, цена и ссылка остаются.
+    Если текст не влезает, сначала отбрасываются необязательные строки
+    (сперва УТП, затем характеристики), и только потом режется название
+    автомобиля — заголовок, цена и ссылка остаются всегда.
+
+    Название режется до того, как вокруг него оборачивается тег ссылки:
+    иначе обрезка разорвала бы <a href=...> и Telegram отказался бы принять
+    сообщение целиком.
     """
+
     def esc(value: str) -> str:
         return html.escape(value, quote=False) if escape else value
 
-    labels = ", ".join(promo.labels)
+    def compose(title: str, keep_specs: bool, keep_usp: bool) -> str:
+        name = _link(title, promo.url, esc, html_links)
+        tail = _car_tail(promo)
+        car_block = f"{name} — {esc(tail)}" if tail else name
+        if promo.labels:
+            car_block += f"\n🏷 {esc(', '.join(promo.labels))}"
 
-    # (текст, обязательный?)
-    blocks: list[tuple[str, bool]] = [(esc(_headline(promo)), True)]
+        blocks = [esc(_headline(promo)), car_block]
 
-    car_index = len(blocks)
-    car_block = esc(_car_line(promo))
-    if labels:
-        car_block += f"\n🏷 {esc(labels)}"
-    blocks.append((car_block, True))
+        specs = _specs_line(promo)
+        if keep_specs and specs:
+            blocks.append(esc(specs))
 
-    specs = _specs_line(promo)
-    if specs:
-        blocks.append((esc(specs), False))
+        facts = [line for line in (_price_line(promo), _period_line(promo)) if line]
+        if facts:
+            blocks.append("\n".join(esc(line) for line in facts))
 
-    facts = [line for line in (_price_line(promo), _period_line(promo)) if line]
-    if facts:
-        blocks.append(("\n".join(esc(line) for line in facts), True))
+        if keep_usp:
+            blocks.append(esc(_usp_line(promo)))
 
-    blocks.append((esc(_usp_line(promo)), False))
-    blocks.append((f"👉 {esc(promo.url)}", True))
+        blocks.append(_cta(promo, esc, html_links))
+        return "\n\n".join(blocks)
 
-    optional_indexes = [i for i, (_, required) in enumerate(blocks) if not required]
-    while True:
-        text = "\n\n".join(block for block, _ in blocks)
-        if len(text) <= limit or not optional_indexes:
+    for keep_specs, keep_usp in ((True, True), (True, False), (False, False)):
+        text = compose(promo.title, keep_specs, keep_usp)
+        if len(text) <= limit:
+            return text
+
+    # Остались одни обязательные блоки — укорачиваем название автомобиля.
+    title = promo.title
+    for _ in range(40):
+        text = compose(title, keep_specs=False, keep_usp=False)
+        if len(text) <= limit:
+            return text
+        shorter = _truncate(title, len(text) - limit)
+        if shorter == title:
             break
-        blocks.pop(optional_indexes.pop())
+        title = shorter
+    return text[:limit]
 
-    if len(text) > limit:
-        # Остались одни обязательные блоки. Режем название автомобиля, а не
-        # хвост поста: цена и ссылка нужнее, чем полное имя модели.
-        overflow = len(text) - limit
-        blocks[car_index] = (_truncate(blocks[car_index][0], overflow), True)
-        text = "\n\n".join(block for block, _ in blocks)
 
-    return text
+def _cta(promo: Promo, esc, html_links: bool) -> str:
+    """Кнопка действия в конце поста."""
+    if html_links:
+        return f"👉 {_link('Забронировать', promo.url, esc, True)}"
+    return f"👉 {esc(promo.url)}"
 
 
 def _truncate(text: str, overflow: int) -> str:
-    """Укоротить блок на overflow символов, по возможности по границе слова."""
+    """Укоротить строку на overflow символов, по возможности по границе слова."""
     keep = max(1, len(text) - overflow - 1)  # -1 под многоточие
     cut = text[:keep]
     space = cut.rfind(" ")
@@ -181,24 +211,35 @@ def _truncate(text: str, overflow: int) -> str:
     return cut.rstrip() + "…"
 
 
-def _digest_item(promo: Promo, esc, changed: bool) -> str:
-    """Одна строка дайджеста: авто, цена, ссылка."""
-    head = f"• {esc(_car_line(promo))}"
+def _digest_item(promo: Promo, esc, changed: bool, html_links: bool) -> str:
+    """Одна позиция дайджеста: название со ссылкой и цена."""
+    name = _link(promo.title, promo.url, esc, html_links)
+    tail = _car_tail(promo)
+    head = f"• {name} — {esc(tail)}" if tail else f"• {name}"
 
     price = ""
     if promo.price is not None:
         price = f"{format_price(promo.price)} ₽/сут"
-        if changed and promo.previous_price and promo.previous_price != promo.price:
+        if changed and promo.previous_price and promo.previous_price > promo.price:
+            # В блоке «обновились цены» процент считается от прошлой цены, а не
+            # от базовой ставки сайта: иначе рядом с «было 4 050 ₽» стоял бы
+            # процент от совсем другого числа и читался бы как ошибка.
+            drop = round((1 - promo.price / promo.previous_price) * 100)
             price += f" — было {format_price(promo.previous_price)} ₽"
-        elif promo.old_price and promo.old_price > promo.price:
-            price += f" вместо {format_price(promo.old_price)} ₽"
-        if promo.discount_percent:
-            price += f" (−{promo.discount_percent}%)"
+            if drop:
+                price += f" (−{drop}%)"
+        else:
+            if promo.old_price and promo.old_price > promo.price:
+                price += f" вместо {format_price(promo.old_price)} ₽"
+            if promo.discount_percent:
+                price += f" (−{promo.discount_percent}%)"
 
     lines = [head]
     if price:
         lines.append(f"  {esc(price)}")
-    lines.append(f"  {esc(promo.url)}")
+    if not html_links:
+        # Разметки нет — адрес приходится печатать отдельной строкой.
+        lines.append(f"  {esc(promo.url)}")
     return "\n".join(lines)
 
 
@@ -217,7 +258,9 @@ def _digest_headline(new: list[Promo], changed: list[Promo]) -> str:
     return f"🔥 Новые авто со скидкой — {len(new)} {_cars_word(len(new))}"
 
 
-def _digest_text(new: list[Promo], changed: list[Promo], escape: bool) -> str:
+def _digest_text(
+    new: list[Promo], changed: list[Promo], escape: bool, html_links: bool
+) -> str:
     """Собрать дайджест целиком, без учёта лимита длины."""
 
     def esc(value: str) -> str:
@@ -227,7 +270,9 @@ def _digest_text(new: list[Promo], changed: list[Promo], escape: bool) -> str:
 
     if new:
         for city_name, promos in _group_by_city(new).items():
-            body = "\n".join(_digest_item(promo, esc, changed=False) for promo in promos)
+            body = "\n".join(
+                _digest_item(promo, esc, False, html_links) for promo in promos
+            )
             sections.append(f"📍 {esc(city_name)}\n{body}")
 
     if changed:
@@ -236,7 +281,9 @@ def _digest_text(new: list[Promo], changed: list[Promo], escape: bool) -> str:
         if new:
             sections.append(esc("💰 Обновились цены"))
         for city_name, promos in _group_by_city(changed).items():
-            body = "\n".join(_digest_item(promo, esc, changed=True) for promo in promos)
+            body = "\n".join(
+                _digest_item(promo, esc, True, html_links) for promo in promos
+            )
             sections.append(f"📍 {esc(city_name)}\n{body}")
 
     sections.append(esc("✅ Без залога, КАСКО в цене, доставим по адресу"))
@@ -245,7 +292,11 @@ def _digest_text(new: list[Promo], changed: list[Promo], escape: bool) -> str:
     # иначе она увела бы читателя не на ту страницу.
     cities = {promo.city_promos_url for promo in new + changed if promo.city_promos_url}
     if len(cities) == 1:
-        sections.append(f"👉 Все акции: {esc(cities.pop())}")
+        url = cities.pop()
+        if html_links:
+            sections.append(f"👉 {_link('Все акции на сайте', url, esc, True)}")
+        else:
+            sections.append(f"👉 Все акции: {esc(url)}")
 
     return "\n\n".join(sections)
 
@@ -255,13 +306,14 @@ def _render_digest(
     changed: list[Promo],
     limit: int,
     escape: bool,
+    html_links: bool,
 ) -> str:
     """Один пост со всеми изменениями за прогон.
 
     Вызывается только когда есть что показать: пустой дайджест в канал
     не уходит, эту проверку делает main.py.
     """
-    text = _digest_text(new, changed, escape)
+    text = _digest_text(new, changed, escape, html_links)
     if len(text) <= limit:
         return text
 
@@ -277,7 +329,7 @@ def _render_digest(
             break
         hidden = (len(new) - len(keep_new)) + (len(changed) - len(keep_changed))
         tail = f"\n\nИ ещё {hidden} {_cars_word(hidden)} — на сайте."
-        text = _digest_text(keep_new, keep_changed, escape) + tail
+        text = _digest_text(keep_new, keep_changed, escape, html_links) + tail
         if len(text) <= limit:
             return text
 
@@ -294,11 +346,13 @@ def _cars_word(count: int) -> str:
 
 
 def render_digest_telegram(new: list[Promo], changed: list[Promo]) -> str:
-    return _render_digest(new, changed, TELEGRAM_MESSAGE_LIMIT, escape=True)
+    return _render_digest(
+        new, changed, TELEGRAM_MESSAGE_LIMIT, escape=True, html_links=True
+    )
 
 
 def render_digest_max(new: list[Promo], changed: list[Promo], limit: int = 4000) -> str:
-    return _render_digest(new, changed, limit, escape=False)
+    return _render_digest(new, changed, limit, escape=False, html_links=False)
 
 
 def render_telegram(promo: Promo, with_photo: bool | None = None) -> str:
@@ -306,9 +360,9 @@ def render_telegram(promo: Promo, with_photo: bool | None = None) -> str:
     if with_photo is None:
         with_photo = bool(promo.image_url)
     limit = TELEGRAM_CAPTION_LIMIT if with_photo else TELEGRAM_MESSAGE_LIMIT
-    return _assemble(promo, limit, escape=True)
+    return _assemble(promo, limit, escape=True, html_links=True)
 
 
 def render_max(promo: Promo, limit: int = 4000) -> str:
     """Текст поста для MAX — без HTML-разметки."""
-    return _assemble(promo, limit, escape=False)
+    return _assemble(promo, limit, escape=False, html_links=False)

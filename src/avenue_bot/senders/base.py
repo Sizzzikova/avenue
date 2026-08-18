@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from typing import Protocol
 
-from ..models import Promo
-
 
 class SendError(RuntimeError):
     """Мессенджер не принял пост."""
@@ -14,8 +12,12 @@ class SendError(RuntimeError):
 class Sender(Protocol):
     name: str
 
-    def send(self, promo: Promo) -> None:
-        """Опубликовать одну акцию. Бросает SendError, если не получилось."""
+    def send_prepared(self, text: str, photo_url: str | None) -> None:
+        """Опубликовать готовый текст. Бросает SendError, если не получилось.
 
-    def send_digest(self, new: list[Promo], changed: list[Promo]) -> None:
-        """Опубликовать один пост со всеми изменениями за прогон."""
+        Текст готовится заранее (render.py) и сюда приходит уже собранным:
+        так в канал уходит ровно то, что видел согласующий.
+        """
+
+    def send_text(self, text: str) -> None:
+        """Служебное сообщение — алерты и уведомления."""

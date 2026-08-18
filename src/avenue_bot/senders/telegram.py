@@ -6,8 +6,6 @@ import logging
 
 import httpx
 
-from ..models import Promo
-from ..render import render_digest_telegram, render_telegram
 from .base import SendError
 
 log = logging.getLogger(__name__)
@@ -36,24 +34,121 @@ class TelegramSender:
     def close(self) -> None:
         self._client.close()
 
-    def send(self, promo: Promo) -> None:
-        if promo.image_url:
+    # --- согласование ---
+
+    def send_for_review(
+        self,
+        chat_id: str,
+        text: str,
+        photo_url: str | None,
+        draft_id: str,
+    ) -> int:
+        """Отправить пост на согласование и вернуть id сообщения.
+
+        Пост уходит ровно в том виде, в каком попадёт в канал, — кнопки просто
+        подвешены под ним. Так согласующий видит настоящий пост, а не пересказ.
+        """
+        keyboard = {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Публиковать", "callback_data": f"pub:{draft_id}"},
+                    {"text": "🚫 Не публиковать", "callback_data": f"rej:{draft_id}"},
+                ]
+            ]
+        }
+        if photo_url:
+            body = self._call(
+                "sendPhoto",
+                {
+                    "chat_id": chat_id,
+                    "photo": photo_url,
+                    "caption": text,
+                    "parse_mode": "HTML",
+                    "reply_markup": keyboard,
+                },
+            )
+        else:
+            body = self._call(
+                "sendMessage",
+                {
+                    "chat_id": chat_id,
+                    "text": text,
+                    "parse_mode": "HTML",
+                    "disable_web_page_preview": True,
+                    "reply_markup": keyboard,
+                },
+            )
+        return int(body["result"]["message_id"])
+
+    def get_callbacks(self, offset: int) -> tuple[list[dict], int]:
+        """Забрать нажатия кнопок. Возвращает список и новое смещение.
+
+        Смещение обязательно сохранять: Telegram отдаёт одни и те же обновления,
+        пока их не подтвердишь, и без этого одобренный пост уходил бы в канал
+        на каждом прогоне заново.
+        """
+        body = self._call(
+            "getUpdates",
+            {
+                "offset": offset,
+                "timeout": 0,
+                "allowed_updates": ["callback_query"],
+            },
+        )
+        updates = body.get("result", [])
+        callbacks = [item["callback_query"] for item in updates if "callback_query" in item]
+        next_offset = max((item["update_id"] for item in updates), default=offset - 1) + 1
+        return callbacks, next_offset
+
+    def answer_callback(self, callback_id: str, text: str) -> None:
+        """Погасить «часики» на кнопке и показать всплывающий ответ."""
+        try:
+            self._call(
+                "answerCallbackQuery", {"callback_query_id": callback_id, "text": text}
+            )
+        except SendError as error:
+            # Ответ живёт несколько секунд; опоздали — не повод падать.
+            log.warning("Не удалось ответить на нажатие: %s", error)
+
+    def finish_review(
+        self, chat_id: str, message_id: int, kind: str, text: str, verdict: str
+    ) -> None:
+        """Убрать кнопки и подписать, чем всё кончилось."""
+        marked = f"{verdict}\n\n{text}"
+        method = "editMessageCaption" if kind == "photo" else "editMessageText"
+        payload: dict[str, object] = {
+            "chat_id": chat_id,
+            "message_id": message_id,
+            "parse_mode": "HTML",
+            "reply_markup": {"inline_keyboard": []},
+        }
+        payload["caption" if kind == "photo" else "text"] = marked
+        try:
+            self._call(method, payload)
+        except SendError as error:
+            log.warning("Не удалось обновить сообщение согласования: %s", error)
+
+    def send_prepared(self, text: str, photo_url: str | None) -> None:
+        """Опубликовать заранее подготовленный текст — тот самый, что согласовали."""
+        if photo_url:
             try:
-                self._send_photo(promo)
+                self._call(
+                    "sendPhoto",
+                    {
+                        "chat_id": self.chat_id,
+                        "photo": photo_url,
+                        "caption": text,
+                        "parse_mode": "HTML",
+                    },
+                )
                 return
             except SendError as error:
-                # Битая или неподдерживаемая картинка не должна съедать пост:
-                # текст важнее, поэтому падаем обратно на обычное сообщение.
-                log.warning("Фото не ушло (%s), отправляю текстом: %s", promo.title, error)
-        self._send_message(promo)
-
-    def send_digest(self, new: list[Promo], changed: list[Promo]) -> None:
-        """Один пост со всеми изменениями. Фото нет — в дайджесте несколько авто."""
+                log.warning("Фото не ушло, отправляю текстом: %s", error)
         self._call(
             "sendMessage",
             {
                 "chat_id": self.chat_id,
-                "text": render_digest_telegram(new, changed),
+                "text": text,
                 "parse_mode": "HTML",
                 "disable_web_page_preview": True,
             },
@@ -67,28 +162,6 @@ class TelegramSender:
                 "chat_id": self.chat_id,
                 "text": text,
                 "disable_web_page_preview": True,
-            },
-        )
-
-    def _send_photo(self, promo: Promo) -> None:
-        self._call(
-            "sendPhoto",
-            {
-                "chat_id": self.chat_id,
-                "photo": promo.image_url,
-                "caption": render_telegram(promo, with_photo=True),
-                "parse_mode": "HTML",
-            },
-        )
-
-    def _send_message(self, promo: Promo) -> None:
-        self._call(
-            "sendMessage",
-            {
-                "chat_id": self.chat_id,
-                "text": render_telegram(promo, with_photo=False),
-                "parse_mode": "HTML",
-                "disable_web_page_preview": False,
             },
         )
 

@@ -19,8 +19,21 @@ from avenue_bot.render import (
 def test_post_contains_city_car_price_and_link(promo):
     text = render_telegram(promo)
     assert "Новосибирске" in text
-    assert "Toyota Camry 70" in text
     assert "7 000 ₽/сут" in text
+    # Ссылка вшита в название автомобиля, голого адреса в тексте нет.
+    assert f'<a href="{promo.url}">Toyota Camry 70</a>' in text
+    assert "https://" not in text.replace(f'href="{promo.url}"', "")
+
+
+def test_post_ends_with_a_call_to_action(promo):
+    text = render_telegram(promo)
+    assert text.rstrip().endswith(f'<a href="{promo.url}">Забронировать</a>')
+
+
+def test_max_post_keeps_a_plain_url(promo):
+    """В MAX разметки нет, поэтому адрес печатается как есть."""
+    text = render_max(promo)
+    assert "<a href" not in text
     assert text.rstrip().endswith(promo.url)
 
 
@@ -162,7 +175,33 @@ def test_digest_separates_new_and_cheaper(promo):
 
 def test_digest_links_to_promos_page_for_one_city(promo):
     text = render_digest_telegram(_promos(promo, 2), [])
-    assert "👉 Все акции: https://avenuerent.ru/aktcii/" in text
+    assert '<a href="https://avenuerent.ru/aktcii/">Все акции на сайте</a>' in text
+
+
+def test_digest_embeds_links_into_car_names(promo):
+    text = render_digest_telegram(_promos(promo, 2), [])
+    for index in range(2):
+        url = f"https://avenuerent.ru/autopark/cars/car{index}/"
+        assert f'<a href="{url}">Авто {index}</a>' in text
+    # Отдельных строк с голыми адресами больше нет.
+    assert "  https://" not in text
+
+
+def test_digest_for_max_prints_plain_urls(promo):
+    text = render_digest_max(_promos(promo, 2), [])
+    assert "<a href" not in text
+    assert "  https://avenuerent.ru/autopark/cars/car0/" in text
+
+
+def test_drop_percent_is_counted_from_the_previous_price(promo):
+    """Процент рядом с «было» должен считаться от того же числа, а не от
+    базовой ставки сайта — иначе он читается как ошибка."""
+    cheaper = dataclasses.replace(
+        promo, price=3825, previous_price=4050, old_price=4250, discount_percent=10
+    )
+    text = render_digest_telegram([], [cheaper])
+    assert "3 825 ₽/сут — было 4 050 ₽ (−6%)" in text
+    assert "(−10%)" not in text
 
 
 def test_digest_omits_promos_link_for_several_cities(promo):

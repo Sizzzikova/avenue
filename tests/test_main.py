@@ -122,21 +122,24 @@ class FakeSender:
     name = "telegram"
 
     def __init__(self):
-        self.sent = []       # одиночные посты
-        self.digests = []    # (новые, подешевевшие)
+        self.sent = []  # (текст, ссылка на фото)
 
-    def send(self, promo):
-        self.sent.append(promo)
+    def send_prepared(self, text, photo_url):
+        self.sent.append((text, photo_url))
 
-    def send_digest(self, new, changed):
-        self.digests.append((list(new), list(changed)))
+    def send_text(self, text):
+        pass
 
     def close(self):
         pass
 
     @property
     def posts(self):
-        return len(self.sent) + len(self.digests)
+        return len(self.sent)
+
+    @property
+    def texts(self):
+        return [text for text, _ in self.sent]
 
 
 def _run(config, monkeypatch, tmp_path, mode, sender, allow_empty_state=True):
@@ -151,6 +154,7 @@ def _run(config, monkeypatch, tmp_path, mode, sender, allow_empty_state=True):
     monkeypatch.setattr(main_module, "load_config", lambda path=None: config)
     monkeypatch.setitem(config.raw["state"], "path", str(tmp_path / "seen.json"))
     monkeypatch.setitem(config.raw["messengers"]["telegram"], "delay_seconds", 0)
+    monkeypatch.setitem(config.raw["moderation"], "enabled", False)
 
     return main_module.run(
         argparse.Namespace(
@@ -170,10 +174,10 @@ def test_digest_run_sends_one_post_then_goes_quiet(config, monkeypatch, tmp_path
     assert _run(config, monkeypatch, tmp_path, "run", sender) == 0
     # Все семь акций — одним постом, а не семью.
     assert sender.posts == 1
-    new, changed = sender.digests[0]
-    assert len(new) == 7  # три города: 3 + 2 + 2
-    assert changed == []
-    assert {promo.city_key for promo in new} == {"nsk", "irkutsk", "gorno-altaysk"}
+    text = sender.texts[0]
+    assert text.count("<a href=") >= 7  # семь машин плюс ссылка «все акции»
+    for city in ("Новосибирск", "Иркутск", "Горно-Алтайск"):
+        assert city in text
 
     assert _run(config, monkeypatch, tmp_path, "run", sender) == 0
     assert sender.posts == 1  # второй прогон молчит
@@ -208,8 +212,8 @@ def test_single_change_is_posted_as_a_normal_post_with_photo(
         )
         == 0
     )
-    assert sender.digests == []
-    assert [promo.car_id for promo in sender.sent] == ["9999"]
+    assert sender.posts == 1
+    assert "car162" in sender.texts[0]
 
 
 def test_changed_url_alone_is_not_a_new_car(config, monkeypatch, tmp_path):
@@ -242,8 +246,7 @@ def test_separate_mode_posts_each_car(config, monkeypatch, tmp_path):
 
     assert _run(config, monkeypatch, tmp_path, "run", sender) == 0
 
-    assert sender.digests == []
-    assert len(sender.sent) == 7
+    assert sender.posts == 7
 
 
 def test_empty_state_stops_publication(config, monkeypatch, tmp_path):

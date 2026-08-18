@@ -20,8 +20,6 @@ import logging
 
 import httpx
 
-from ..models import Promo
-from ..render import render_digest_max, render_max
 from .base import SendError
 
 log = logging.getLogger(__name__)
@@ -47,19 +45,15 @@ class MaxSender:
     def close(self) -> None:
         self._client.close()
 
-    def send(self, promo: Promo) -> None:
-        text = render_max(promo)
-        if promo.image_url:
+    def send_prepared(self, text: str, photo_url: str | None) -> None:
+        """Опубликовать заранее подготовленный текст — тот самый, что согласовали."""
+        if photo_url:
             try:
-                self._post(self._build_payload(text, promo.image_url))
+                self._post(self._build_payload(text, photo_url))
                 return
             except SendError as error:
-                log.warning("MAX: вложение не принято (%s), отправляю текстом: %s",
-                            promo.title, error)
+                log.warning("MAX: вложение не принято, отправляю текстом: %s", error)
         self._post(self._build_payload(text, None))
-
-    def send_digest(self, new: list[Promo], changed: list[Promo]) -> None:
-        self._post(self._build_payload(render_digest_max(new, changed), None))
 
     def send_text(self, text: str) -> None:
         self._post(self._build_payload(text, None))

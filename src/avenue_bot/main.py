@@ -8,7 +8,11 @@
 * seed    — записать все текущие акции как «уже виденные», ничего не публикуя.
   Запускается один раз перед включением расписания, иначе первый прогон
   опубликует сразу все действующие акции.
-* run     — боевой режим: публикует только новые акции.
+* run     — боевой режим. Если согласование включено, пост уходит в рабочий
+  чат с кнопками; если выключено — сразу в канал.
+* approvals — разобрать нажатия кнопок под постами, ждущими согласования.
+  Сайт не трогает, работает только с черновиками. Запускается чаще основного
+  режима, потому что своего сервера у бота нет и нажатия он забирает опросом.
 """
 
 from __future__ import annotations
@@ -25,7 +29,13 @@ from .fetch import FetchError, Fetcher
 from .models import Promo
 from .parse import parse_promos
 from .prices import enrich_prices
-from .render import render_digest_telegram, render_telegram
+from .drafts import APPROVED, PENDING, REJECTED, Drafts
+from .render import (
+    render_digest_max,
+    render_digest_telegram,
+    render_max,
+    render_telegram,
+)
 from .state import State
 
 log = logging.getLogger("avenue_bot")
@@ -201,6 +211,13 @@ def run(args: argparse.Namespace) -> int:
     secrets = Secrets.from_env()
     alerter = Alerter(secrets.telegram_bot_token, secrets.telegram_admin_chat_id)
 
+    if args.mode == "approvals":
+        # Сайт не трогаем: всё нужное уже лежит в черновиках.
+        try:
+            return run_approvals(config, secrets, alerter)
+        finally:
+            alerter.close()
+
     cities = config.cities
     if args.city:
         cities = [city for city in cities if city.key in args.city]
@@ -289,15 +306,19 @@ def run(args: argparse.Namespace) -> int:
         alerter.close()
         return 1
 
-    if config.post_mode == "digest":
-        posted, send_failed = _post_digest(new, changed, senders, config, alerter)
+    posts = build_posts(new, changed, config)
+
+    if config.moderation_enabled:
+        sent, send_failed = _send_for_review(posts, config, secrets, alerter)
     else:
-        posted, send_failed = _post_separately(new + changed, senders, config, alerter)
+        sent, send_failed = _publish(posts, senders, config, alerter)
 
     # Помечаем виденными в любом случае: если пост не ушёл, следующий прогон
     # не должен долбить тем же самым — про сбой уже есть алерт в служебном чате.
+    # Отправленное на согласование тоже помечаем: иначе завтрашний прогон
+    # приготовил бы второй такой же черновик.
     for promo in new + changed:
-        state.mark_seen(promo, posted=posted > 0)
+        state.mark_seen(promo, posted=sent > 0)
 
     _finish_state(state, ok_results)
     for sender in senders:
@@ -306,10 +327,11 @@ def run(args: argparse.Namespace) -> int:
             close()
 
     log.info(
-        "Готово. Новых акций: %s, подешевевших: %s, постов отправлено: %s",
+        "Готово. Новых акций: %s, подешевевших: %s, постов %s: %s",
         len(new),
         len(changed),
-        posted,
+        "на согласование" if config.moderation_enabled else "опубликовано",
+        sent,
     )
     if send_failed:
         exit_code = 1
@@ -329,70 +351,230 @@ def _finish_state(state: State, ok_results: list[CityResult]) -> None:
     state.save()
 
 
-def _post_digest(
-    new: list[Promo],
-    changed: list[Promo],
-    senders: list,
-    config: Config,
-    alerter: Alerter,
-) -> tuple[int, bool]:
-    """Один пост со всеми изменениями.
+def build_posts(
+    new: list[Promo], changed: list[Promo], config: Config
+) -> list[tuple[str, str, str | None]]:
+    """Собрать готовые тексты постов: (для Telegram, для MAX, ссылка на фото).
 
-    Если изменение всего одно, шлём обычный пост с фотографией — дайджест
-    из одной строки выглядел бы бедно.
+    Текст готовится один раз и дальше только пересылается. Это важно для
+    согласования: в канал уходит ровно то, что человек видел под кнопками,
+    даже если цены на сайте к этому моменту успели измениться.
     """
-    posted = 0
-    failed = False
-    single = (new + changed)[0] if len(new) + len(changed) == 1 else None
+    items = new + changed
 
-    for sender in senders:
-        try:
-            if single is not None:
-                sender.send(single)
-            else:
-                sender.send_digest(new, changed)
-            posted += 1
-            log.info(
-                "[%s] опубликован дайджест: новых %s, подешевевших %s",
-                sender.name,
-                len(new),
-                len(changed),
-            )
-        except Exception as error:  # noqa: BLE001 — один канал не роняет другой
-            failed = True
-            alerter.notify(f"{sender.name}: не удалось опубликовать дайджест.\n{error}")
-        time.sleep(_delay_for(sender, config))
+    if config.post_mode == "separate":
+        return [(render_telegram(p), render_max(p), p.image_url) for p in items]
 
-    return posted, failed
+    if len(items) == 1:
+        # Дайджест из одной строки выглядел бы бедно — шлём обычный пост с фото.
+        single = items[0]
+        return [(render_telegram(single), render_max(single), single.image_url)]
+
+    return [
+        (
+            render_digest_telegram(new, changed),
+            render_digest_max(new, changed),
+            None,
+        )
+    ]
 
 
-def _post_separately(
-    promos: list[Promo],
+def _publish(
+    posts: list[tuple[str, str, str | None]],
     senders: list,
     config: Config,
     alerter: Alerter,
 ) -> tuple[int, bool]:
-    """Отдельный пост на каждый автомобиль."""
-    posted = 0
+    """Отправить готовые посты в каналы."""
+    sent = 0
     failed = False
 
-    for promo in promos:
+    for telegram_text, max_text, photo_url in posts:
         for sender in senders:
+            text = telegram_text if sender.name == "telegram" else max_text
             try:
-                sender.send(promo)
-                posted += 1
-                log.info(
-                    "[%s] опубликовано: %s (%s)", sender.name, promo.title, promo.city_name
-                )
-            except Exception as error:  # noqa: BLE001
+                sender.send_prepared(text, photo_url)
+                sent += 1
+                log.info("[%s] опубликовано", sender.name)
+            except Exception as error:  # noqa: BLE001 — один канал не роняет другой
                 failed = True
-                alerter.notify(
-                    f"{sender.name}: не удалось опубликовать «{promo.title}» "
-                    f"({promo.city_name}).\n{error}"
-                )
+                alerter.notify(f"{sender.name}: не удалось опубликовать пост.\n{error}")
             time.sleep(_delay_for(sender, config))
 
-    return posted, failed
+    return sent, failed
+
+
+def _send_for_review(
+    posts: list[tuple[str, str, str | None]],
+    config: Config,
+    secrets: Secrets,
+    alerter: Alerter,
+) -> tuple[int, bool]:
+    """Отправить посты в чат согласования и запомнить их как черновики."""
+    if not secrets.telegram_admin_chat_id:
+        # Алерт сюда же не уйдёт — чата-то и нет, но в логе прогона будет видно.
+        alerter.notify(
+            "Включено согласование, но не задан рабочий чат: нужен секрет "
+            "TELEGRAM_ADMIN_CHAT_ID."
+        )
+        return 0, True
+
+    from .senders.telegram import TelegramSender
+
+    reviewer = TelegramSender(secrets.telegram_bot_token, secrets.telegram_chat_id)
+    drafts = Drafts.load(config.pending_path)
+    sent = 0
+    failed = False
+
+    try:
+        for telegram_text, max_text, photo_url in posts:
+            draft_id = drafts.add(telegram_text, max_text, photo_url)
+            try:
+                message_id = reviewer.send_for_review(
+                    secrets.telegram_admin_chat_id, telegram_text, photo_url, draft_id
+                )
+                drafts.set_review_message(draft_id, message_id)
+                sent += 1
+                log.info("Пост отправлен на согласование, черновик %s", draft_id)
+            except Exception as error:  # noqa: BLE001
+                failed = True
+                # Черновик, который никто не увидит, согласовать нечем — убираем.
+                drafts.drafts.pop(draft_id, None)
+                alerter.notify(f"Не удалось отправить пост на согласование.\n{error}")
+            time.sleep(_delay_for(reviewer, config))
+        drafts.forget_decided()
+        drafts.save()
+    finally:
+        reviewer.close()
+
+    return sent, failed
+
+
+def run_approvals(config: Config, secrets: Secrets, alerter: Alerter) -> int:
+    """Разобрать нажатия кнопок под постами, ждущими согласования.
+
+    Отдельный режим, который запускается чаще основного. Сайт при этом не
+    трогается вообще: всё нужное уже лежит в черновиках.
+    """
+    if not config.moderation_enabled:
+        log.info("Согласование выключено — разбирать нечего")
+        return 0
+    if not secrets.telegram_bot_token or not secrets.telegram_admin_chat_id:
+        log.warning("Нет токена или рабочего чата — согласовывать негде, пропускаю")
+        return 0
+
+    from .senders.telegram import TelegramSender
+
+    drafts = Drafts.load(config.pending_path)
+    reviewer = TelegramSender(secrets.telegram_bot_token, secrets.telegram_chat_id)
+    senders = build_senders(config, secrets)
+    exit_code = 0
+
+    try:
+        for draft_id in drafts.expire_old(config.moderation_expire_hours):
+            draft = drafts.get(draft_id) or {}
+            log.info("Черновик %s просрочен и больше не согласуется", draft_id)
+            if draft.get("review_message_id"):
+                reviewer.finish_review(
+                    secrets.telegram_admin_chat_id,
+                    draft["review_message_id"],
+                    draft.get("kind", "text"),
+                    draft.get("telegram_text", ""),
+                    "⌛️ Просрочено, пост не опубликован",
+                )
+
+        try:
+            callbacks, next_offset = reviewer.get_callbacks(drafts.update_offset)
+        except Exception as error:  # noqa: BLE001
+            alerter.notify(f"Не удалось прочитать нажатия кнопок.\n{error}")
+            drafts.save()
+            return 1
+
+        for callback in callbacks:
+            if not _handle_callback(
+                callback, drafts, reviewer, senders, config, secrets, alerter
+            ):
+                exit_code = 1
+
+        # Смещение двигаем только после разбора: иначе при падении посередине
+        # нажатия потерялись бы навсегда.
+        drafts.update_offset = next_offset
+        drafts.forget_decided()
+        drafts.save()
+    finally:
+        reviewer.close()
+        for sender in senders:
+            close = getattr(sender, "close", None)
+            if close:
+                close()
+
+    return exit_code
+
+
+def _handle_callback(
+    callback: dict,
+    drafts: Drafts,
+    reviewer,
+    senders: list,
+    config: Config,
+    secrets: Secrets,
+    alerter: Alerter,
+) -> bool:
+    """Обработать одно нажатие. False — публикация сорвалась."""
+    callback_id = callback.get("id", "")
+    action, _, draft_id = callback.get("data", "").partition(":")
+
+    if action not in {"pub", "rej"} or not draft_id:
+        reviewer.answer_callback(callback_id, "Непонятная кнопка")
+        return True
+
+    draft = drafts.get(draft_id)
+    if draft is None:
+        reviewer.answer_callback(callback_id, "Черновик не найден — он уже устарел")
+        return True
+    if draft.get("status") != PENDING:
+        reviewer.answer_callback(callback_id, "По этому посту решение уже принято")
+        return True
+
+    if action == "rej":
+        drafts.set_status(draft_id, REJECTED)
+        reviewer.finish_review(
+            secrets.telegram_admin_chat_id,
+            draft.get("review_message_id"),
+            draft.get("kind", "text"),
+            draft.get("telegram_text", ""),
+            "🚫 Отклонено, в канал не ушло",
+        )
+        reviewer.answer_callback(callback_id, "Не публикуем")
+        log.info("Черновик %s отклонён", draft_id)
+        return True
+
+    ok = True
+    for sender in senders:
+        text = draft["telegram_text"] if sender.name == "telegram" else draft["max_text"]
+        try:
+            sender.send_prepared(text, draft.get("photo_url"))
+            log.info("[%s] опубликован согласованный черновик %s", sender.name, draft_id)
+        except Exception as error:  # noqa: BLE001
+            ok = False
+            alerter.notify(f"{sender.name}: не удалось опубликовать пост.\n{error}")
+        time.sleep(_delay_for(sender, config))
+
+    if ok:
+        drafts.set_status(draft_id, APPROVED)
+        reviewer.finish_review(
+            secrets.telegram_admin_chat_id,
+            draft.get("review_message_id"),
+            draft.get("kind", "text"),
+            draft.get("telegram_text", ""),
+            "✅ Опубликовано",
+        )
+        reviewer.answer_callback(callback_id, "Опубликовано")
+    else:
+        # Статус не трогаем: кнопка останется рабочей, можно нажать ещё раз.
+        reviewer.answer_callback(callback_id, "Не получилось опубликовать, см. алерты")
+
+    return ok
 
 
 def _print_dry_run(
@@ -422,9 +604,10 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Автопостинг акций «Авеню»")
     parser.add_argument(
         "--mode",
-        choices=["run", "seed", "dry-run"],
+        choices=["run", "seed", "dry-run", "approvals"],
         default="dry-run",
-        help="run — публиковать, seed — только запомнить текущие, dry-run — печать в консоль",
+        help="run — подготовить пост, seed — только запомнить текущие, "
+        "dry-run — печать в консоль, approvals — разобрать нажатия кнопок согласования",
     )
     parser.add_argument("--config", default=None, help="путь к config.yml")
     parser.add_argument(
