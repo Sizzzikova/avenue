@@ -13,7 +13,7 @@ from typing import Any
 
 import yaml
 
-# Корень проекта: .../avenue-promo-bot
+# Корень проекта — он же корень репозитория.
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yml"
 
