@@ -1,0 +1,66 @@
+{
+  "gorno-altaysk:car8248": {
+    "city": "Горно-Алтайск",
+    "fingerprint": "8c5618e46bb500e7cc4c930b8e3d25b88d54ca1cf6e8cdfcc2b06e14829b780c",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 8832,
+    "price_source": "calc",
+    "title": "Haval Jolion"
+  },
+  "irkutsk:car11056": {
+    "city": "Иркутск",
+    "fingerprint": "c07359f5491685ea01b8775baf7ac91063660a633d4b9c411cb8bb76ca8640f7",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 3825,
+    "price_source": "calc",
+    "title": "Nissan Roox"
+  },
+  "irkutsk:car1779": {
+    "city": "Иркутск",
+    "fingerprint": "e6be2726d9bebb42a1ba7b160d6e877215fd6d41881b1b052b2d3115eed7b5e4",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 7119,
+    "price_source": "calc",
+    "title": "Kia Sportage"
+  },
+  "irkutsk:car6525": {
+    "city": "Иркутск",
+    "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 5400,
+    "price_source": "calc",
+    "title": "Geely Emgrand"
+  },
+  "nsk:car11245": {
+    "city": "Новосибирск",
+    "fingerprint": "f5707b293ff0eedae55fdef8a9815aceef707588b62e00a631ce08a9cb77e31b",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 6720,
+    "price_source": "calc",
+    "title": "Chery Tiggo 8 Pro Max"
+  },
+  "nsk:car5486": {
+    "city": "Новосибирск",
+    "fingerprint": "d1973434224d489067d611945016e6c306006b9780d94cec01cfb69596b520ee",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 5950,
+    "price_source": "calc",
+    "title": "Chery Arrizo 8"
+  },
+  "nsk:car5748": {
+    "city": "Новосибирск",
+    "fingerprint": "e8e0f5f771d7e92cc2cb57fadbe95f2042464b9e93d09ef11809102930c9b713",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 4760,
+    "price_source": "calc",
+    "title": "Chery Tiggo 4 Pro"
+  },
+  "nsk:car6264": {
+    "city": "Новосибирск",
+    "fingerprint": "a5b377d63e674980bed35b15e7bad3e741ec127ebffc2c99d7c21c656f1df299",
+    "first_seen": "2026-08-18T11:08:39+00:00",
+    "price": 5400,
+    "price_source": "calc",
+    "title": "Geely Belgee X50"
+  }
+}
