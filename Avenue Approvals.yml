@@ -1,0 +1,77 @@
+# Разбор нажатий кнопок «Публиковать» / «Не публиковать».
+#
+# Зачем отдельный workflow. У бота нет своего сервера, поэтому нажатия он не
+# получает мгновенно, а забирает опросом Telegram по расписанию. Отсюда и
+# задержка: между нажатием кнопки и появлением поста в канале проходит
+# до получаса — GitHub ещё и ставит запуски по расписанию в очередь.
+#
+# Если такая задержка не годится, бота надо переносить на постоянно
+# работающий хостинг и подключать webhook — см. README.
+
+name: Согласование акций
+
+on:
+  schedule:
+    # Каждые 15 минут. Чаще смысла нет: GitHub всё равно запускает
+    # расписание с задержкой и не гарантирует точность.
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+permissions:
+  # Нужно, чтобы коммитить state/pending.json со статусами черновиков.
+  contents: write
+
+concurrency:
+  # Тот же ключ, что у основного workflow: два прогона одновременно могут
+  # опубликовать один пост дважды и подраться за файл состояния.
+  group: avenue-promos
+  cancel-in-progress: false
+
+jobs:
+  approvals:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Установить зависимости
+        run: pip install -r requirements.txt
+
+      - name: Разобрать нажатия
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          MAX_BOT_TOKEN: ${{ secrets.MAX_BOT_TOKEN }}
+          MAX_CHAT_ID: ${{ secrets.MAX_CHAT_ID }}
+        run: PYTHONPATH=src python -m avenue_bot.main --mode approvals
+
+      - name: Сохранить черновики
+        # Обязательно даже при падении: если пост уже ушёл в канал, статус
+        # черновика надо зафиксировать, иначе следующий прогон опубликует его
+        # повторно.
+        if: always()
+        run: |
+          if [ -z "$(git status --porcelain state/pending.json)" ]; then
+            echo "Черновики не изменились"
+            exit 0
+          fi
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add state/pending.json
+          git commit -m 'chore: статусы согласования [skip ci]'
+          for attempt in 1 2 3 4; do
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              exit 0
+            fi
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}" || git rebase --abort
+            sleep $((2 ** attempt))
+          done
+          exit 1
