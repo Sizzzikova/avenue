@@ -100,6 +100,38 @@ class TelegramSender:
         next_offset = max((item["update_id"] for item in updates), default=offset - 1) + 1
         return callbacks, next_offset
 
+    # --- самопроверка ---
+
+    def get_me(self) -> dict:
+        """Кто мы такие с точки зрения Telegram. Заодно проверка токена."""
+        return self._call("getMe", {})["result"]
+
+    def get_chat(self, chat_id: str) -> dict:
+        """Существует ли чат и видит ли его бот."""
+        return self._call("getChat", {"chat_id": chat_id})["result"]
+
+    def get_chat_member(self, chat_id: str, user_id: int) -> dict:
+        """Права бота в чате.
+
+        Главная причина «пост не доходит до канала»: бот добавлен в канал,
+        но не администратором — или администратором без права публиковать.
+        """
+        return self._call(
+            "getChatMember", {"chat_id": chat_id, "user_id": user_id}
+        )["result"]
+
+    def peek_callbacks(self, offset: int) -> list[dict]:
+        """Посмотреть нажатия, НЕ подтверждая их.
+
+        Для диагностики: нажатия должны остаться в очереди и достаться
+        обычному прогону.
+        """
+        body = self._call(
+            "getUpdates",
+            {"offset": offset, "timeout": 0, "allowed_updates": ["callback_query"]},
+        )
+        return [i["callback_query"] for i in body.get("result", []) if "callback_query" in i]
+
     def confirm_updates(self, offset: int) -> None:
         """Подтвердить Telegram, что нажатия получены.
 

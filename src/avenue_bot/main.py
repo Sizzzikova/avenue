@@ -14,6 +14,8 @@
   ценами, независимо от того, о чём уже рассказывали. Разовая пересборка
   витрины: например, когда канал только запускается. Память после него
   считается актуальной, дальше всё идёт как обычно.
+* doctor — проверить настройку: токен, права бота в канале, черновики,
+  неразобранные нажатия. Отчёт печатается в лог и уходит в рабочий чат.
 * approvals — разобрать нажатия кнопок под постами, ждущими согласования.
   Сайт не трогает, работает только с черновиками. Запускается чаще основного
   режима, потому что своего сервера у бота нет и нажатия он забирает опросом.
@@ -210,6 +212,143 @@ def _delay_for(sender, config: Config) -> float:
     return float(config.messengers.get(sender.name, {}).get("delay_seconds", 1.0))
 
 
+def run_doctor(config: Config, secrets: Secrets) -> int:
+    """Проверить настройку и назвать причину, если посты не доходят.
+
+    Порядок проверок — от того, без чего не работает вообще ничего, к тому,
+    что ломает только публикацию. Первая же красная строка и есть ответ.
+    """
+    from .senders.telegram import TelegramSender
+
+    lines: list[str] = []
+    problems: list[str] = []
+
+    def ok(text: str) -> None:
+        lines.append(f"✅ {text}")
+
+    def bad(text: str, fix: str) -> None:
+        lines.append(f"❌ {text}")
+        problems.append(fix)
+
+    if not secrets.telegram_bot_token:
+        print("❌ Нет секрета TELEGRAM_BOT_TOKEN — проверять нечего.")
+        return 1
+
+    bot = TelegramSender(
+        secrets.telegram_bot_token, secrets.telegram_chat_id or "@placeholder"
+    )
+    bot_id = None
+    try:
+        me = bot.get_me()
+        bot_id = me["id"]
+        ok(f"Токен рабочий, бот @{me.get('username')}")
+    except Exception as error:  # noqa: BLE001
+        bad(f"Токен не принят Telegram: {error}",
+            "Проверьте секрет TELEGRAM_BOT_TOKEN — возможно, он с пробелом "
+            "или бот удалён в @BotFather.")
+
+    # --- канал: сюда уходят посты подписчикам ---
+    if not secrets.telegram_chat_id:
+        bad("Не задан TELEGRAM_CHAT_ID",
+            "Добавьте секрет TELEGRAM_CHAT_ID — это канал для подписчиков.")
+    elif bot_id:
+        try:
+            chat = bot.get_chat(secrets.telegram_chat_id)
+            ok(f"Канал найден: {chat.get('title') or chat.get('username')} "
+               f"({chat.get('type')})")
+            try:
+                member = bot.get_chat_member(secrets.telegram_chat_id, bot_id)
+                status = member.get("status")
+                can_post = member.get("can_post_messages")
+                if status != "administrator":
+                    bad(f"В канале бот в роли «{status}», а не администратор",
+                        "Откройте канал → Администраторы → добавьте бота "
+                        "администратором с правом «Публикация сообщений». "
+                        "Без этого Telegram не даёт боту писать в канал — "
+                        "это самая частая причина, почему пост не доходит.")
+                elif can_post is False:
+                    bad("Бот администратор, но без права публиковать",
+                        "В настройках администратора включите «Публикация "
+                        "сообщений».")
+                else:
+                    ok("Бот — администратор канала с правом публикации")
+            except Exception as error:  # noqa: BLE001
+                bad(f"Не удалось проверить права в канале: {error}",
+                    "Убедитесь, что бот добавлен в канал.")
+        except Exception as error:  # noqa: BLE001
+            bad(f"Канал недоступен: {error}",
+                "Проверьте TELEGRAM_CHAT_ID. Для публичного канала это "
+                "@имя_канала, для закрытого — число вида -100…, и бот должен "
+                "быть в этом канале.")
+
+    # --- рабочий чат: туда приходят посты на согласование ---
+    if not secrets.telegram_admin_chat_id:
+        bad("Не задан TELEGRAM_ADMIN_CHAT_ID",
+            "Добавьте секрет TELEGRAM_ADMIN_CHAT_ID — рабочий чат "
+            "для согласования и алертов.")
+    elif bot_id:
+        try:
+            chat = bot.get_chat(secrets.telegram_admin_chat_id)
+            ok(f"Рабочий чат найден: {chat.get('title') or chat.get('username')}")
+        except Exception as error:  # noqa: BLE001
+            bad(f"Рабочий чат недоступен: {error}",
+                "Проверьте TELEGRAM_ADMIN_CHAT_ID и что бот состоит в этом чате.")
+
+    # --- черновики и нажатия ---
+    drafts = Drafts.load(config.pending_path)
+    pending = drafts.pending_ids()
+    if not config.pending_path.exists():
+        lines.append(
+            f"⚠️ Файла {config.pending_path.name} нет — черновиков пока не было "
+            "либо он не сохраняется в репозиторий."
+        )
+    else:
+        ok(f"Черновиков ждёт согласования: {len(pending)}, "
+           f"смещение в ленте: {drafts.update_offset}")
+
+    if bot_id:
+        try:
+            waiting = bot.peek_callbacks(drafts.update_offset)
+            if waiting:
+                ok(f"Неразобранных нажатий в очереди: {len(waiting)} — "
+                   "их подхватит режим approvals")
+            else:
+                lines.append(
+                    "⚠️ Неразобранных нажатий нет. Если вы только что жали "
+                    "кнопку, значит прогон approvals её уже забрал — "
+                    "смотрите его лог. Если прогонов не было, нажмите ещё раз."
+                )
+        except Exception as error:  # noqa: BLE001
+            bad(f"Не удалось прочитать нажатия: {error}", "")
+
+    bot.close()
+
+    if not config.moderation_enabled:
+        lines.append("ℹ️ Согласование выключено — посты идут прямо в канал.")
+
+    report = "🩺 Проверка бота акций «Авеню»\n\n" + "\n".join(lines)
+    if problems:
+        report += "\n\nЧТО ПОЧИНИТЬ:\n\n" + "\n\n".join(
+            f"{n}. {fix}" for n, fix in enumerate(problems, 1) if fix
+        )
+    else:
+        report += "\n\nВсё на месте. Если пост всё равно не доходит — пришлите "
+        report += "лог прогона «Согласование акций»."
+
+    print(report)
+    if secrets.telegram_admin_chat_id and bot_id:
+        try:
+            notifier = TelegramSender(
+                secrets.telegram_bot_token, secrets.telegram_admin_chat_id
+            )
+            notifier.send_text(report)
+            notifier.close()
+        except Exception as error:  # noqa: BLE001
+            log.warning("Отчёт не ушёл в чат: %s", error)
+
+    return 1 if problems else 0
+
+
 def _guard(
     args: argparse.Namespace, config: Config, alerter: Alerter, reason: str
 ) -> bool:
@@ -242,6 +381,12 @@ def run(args: argparse.Namespace) -> int:
     config = load_config(args.config)
     secrets = Secrets.from_env()
     alerter = Alerter(secrets.telegram_bot_token, secrets.telegram_admin_chat_id)
+
+    if args.mode == "doctor":
+        try:
+            return run_doctor(config, secrets)
+        finally:
+            alerter.close()
 
     if args.mode == "approvals":
         # Сайт не трогаем: всё нужное уже лежит в черновиках.
@@ -690,11 +835,12 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Автопостинг акций «Авеню»")
     parser.add_argument(
         "--mode",
-        choices=["run", "seed", "dry-run", "approvals", "announce"],
+        choices=["run", "seed", "dry-run", "approvals", "announce", "doctor"],
         default="dry-run",
         help="run — подготовить пост, seed — только запомнить текущие, "
         "dry-run — печать в консоль, approvals — разобрать нажатия кнопок, "
-        "announce — собрать пост из всех сегодняшних акций, не глядя на память",
+        "announce — собрать пост из всех сегодняшних акций, не глядя на память, "
+        "doctor — проверить настройку и найти причину, если посты не доходят",
     )
     parser.add_argument("--config", default=None, help="путь к config.yml")
     parser.add_argument(
