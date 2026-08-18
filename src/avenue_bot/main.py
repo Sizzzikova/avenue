@@ -544,14 +544,21 @@ def run_approvals(config: Config, secrets: Secrets, alerter: Alerter) -> int:
             drafts.save()
             return 1
 
+        if callbacks:
+            # Подтверждаем ДО публикации. Неподтверждённые обновления Telegram
+            # отдаёт снова на каждом прогоне, и если pending.json не доедет до
+            # репозитория, один и тот же пост уйдёт в канал десятки раз.
+            # Потерянное нажатие не страшно: кнопка на месте, можно нажать ещё.
+            reviewer.confirm_updates(next_offset)
+            drafts.update_offset = next_offset
+            drafts.save()
+
         for callback in callbacks:
             if not _handle_callback(
                 callback, drafts, reviewer, senders, config, secrets, alerter
             ):
                 exit_code = 1
 
-        # Смещение двигаем только после разбора: иначе при падении посередине
-        # нажатия потерялись бы навсегда.
         drafts.update_offset = next_offset
         drafts.forget_decided()
         drafts.save()
@@ -574,61 +581,86 @@ def _handle_callback(
     secrets: Secrets,
     alerter: Alerter,
 ) -> bool:
-    """Обработать одно нажатие. False — публикация сорвалась."""
+    """Обработать одно нажатие. False — публикация сорвалась.
+
+    Публикуем копией одобренного сообщения, а не заново собранным текстом:
+    подписчики получают ровно то, что человек видел под кнопками, и работает
+    это даже если файл черновиков потерялся по дороге.
+    """
     callback_id = callback.get("id", "")
     action, _, draft_id = callback.get("data", "").partition(":")
 
-    if action not in {"pub", "rej"} or not draft_id:
+    message = callback.get("message") or {}
+    source_chat = str((message.get("chat") or {}).get("id") or "")
+    source_message = message.get("message_id")
+    kind = "photo" if message.get("photo") else "text"
+    shown_text = message.get("caption") or message.get("text") or ""
+
+    if action not in {"pub", "rej"}:
         reviewer.answer_callback(callback_id, "Непонятная кнопка")
         return True
 
     draft = drafts.get(draft_id)
-    if draft is None:
-        reviewer.answer_callback(callback_id, "Черновик не найден — он уже устарел")
-        return True
-    if draft.get("status") != PENDING:
+    if draft is not None and draft.get("status") != PENDING:
         reviewer.answer_callback(callback_id, "По этому посту решение уже принято")
         return True
 
-    if action == "rej":
-        drafts.set_status(draft_id, REJECTED)
-        reviewer.finish_review(
-            secrets.telegram_admin_chat_id,
-            draft.get("review_message_id"),
-            draft.get("kind", "text"),
-            draft.get("telegram_text", ""),
-            "🚫 Отклонено, в канал не ушло",
+    if draft is None:
+        # Черновик не сохранился — обычно потому, что workflow не закоммитил
+        # state/pending.json. Нажатие всё равно отрабатываем: сообщение с
+        # кнопками у нас перед глазами, копировать в канал есть что.
+        log.warning("Черновик %s не найден, работаем по самому сообщению", draft_id)
+        alerter.notify(
+            f"Черновик {draft_id} не найден в state/pending.json, хотя кнопку "
+            "нажали. Обычно это значит, что файл не доехал до репозитория — "
+            "проверьте шаг «Сохранить состояние» в прогонах Actions.\n\n"
+            "Нажатие обработано по самому сообщению, так что пост не потерян."
         )
+
+    if action == "rej":
+        if draft is not None:
+            drafts.set_status(draft_id, REJECTED)
+        _finish(reviewer, source_chat, source_message, kind, shown_text,
+                "🚫 Отклонено, в канал не ушло")
         reviewer.answer_callback(callback_id, "Не публикуем")
         log.info("Черновик %s отклонён", draft_id)
         return True
 
     ok = True
     for sender in senders:
-        text = draft["telegram_text"] if sender.name == "telegram" else draft["max_text"]
         try:
-            sender.send_prepared(text, draft.get("photo_url"))
-            log.info("[%s] опубликован согласованный черновик %s", sender.name, draft_id)
+            if sender.name == "telegram" and source_chat and source_message:
+                sender.copy_message(source_chat, source_message)
+            elif draft is not None:
+                text = draft["telegram_text"] if sender.name == "telegram" else draft["max_text"]
+                sender.send_prepared(text, draft.get("photo_url"))
+            else:
+                log.warning("[%s] нечего публиковать: нет ни черновика, ни сообщения",
+                            sender.name)
+                continue
+            log.info("[%s] опубликован согласованный пост %s", sender.name, draft_id)
         except Exception as error:  # noqa: BLE001
             ok = False
             alerter.notify(f"{sender.name}: не удалось опубликовать пост.\n{error}")
         time.sleep(_delay_for(sender, config))
 
     if ok:
-        drafts.set_status(draft_id, APPROVED)
-        reviewer.finish_review(
-            secrets.telegram_admin_chat_id,
-            draft.get("review_message_id"),
-            draft.get("kind", "text"),
-            draft.get("telegram_text", ""),
-            "✅ Опубликовано",
-        )
+        if draft is not None:
+            drafts.set_status(draft_id, APPROVED)
+        _finish(reviewer, source_chat, source_message, kind, shown_text, "✅ Опубликовано")
         reviewer.answer_callback(callback_id, "Опубликовано")
     else:
         # Статус не трогаем: кнопка останется рабочей, можно нажать ещё раз.
         reviewer.answer_callback(callback_id, "Не получилось опубликовать, см. алерты")
 
     return ok
+
+
+def _finish(reviewer, chat_id, message_id, kind, text, verdict) -> None:
+    """Убрать кнопки под согласованным постом и подписать решение."""
+    if not chat_id or not message_id:
+        return
+    reviewer.finish_review(chat_id, message_id, kind, text, verdict)
 
 
 def _print_dry_run(

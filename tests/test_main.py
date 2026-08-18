@@ -122,10 +122,14 @@ class FakeSender:
     name = "telegram"
 
     def __init__(self):
-        self.sent = []  # (текст, ссылка на фото)
+        self.sent = []    # (текст, ссылка на фото)
+        self.copied = []  # (чат-источник, id сообщения)
 
     def send_prepared(self, text, photo_url):
         self.sent.append((text, photo_url))
+
+    def copy_message(self, from_chat_id, message_id):
+        self.copied.append((from_chat_id, message_id))
 
     def send_text(self, text):
         pass
@@ -135,7 +139,7 @@ class FakeSender:
 
     @property
     def posts(self):
-        return len(self.sent)
+        return len(self.sent) + len(self.copied)
 
     @property
     def texts(self):

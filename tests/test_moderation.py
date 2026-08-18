@@ -25,6 +25,8 @@ class FakeReviewer:
         self.callbacks: list[dict] = []
         self.next_offset = 1
         self.published = []
+        self.copied = []        # (чат-источник, id сообщения)
+        self.confirmed = None   # подтверждённое смещение
         FakeReviewer.instances.append(self)
 
     def send_for_review(self, chat_id, text, photo_url, draft_id):
@@ -33,6 +35,12 @@ class FakeReviewer:
 
     def get_callbacks(self, offset):
         return self.callbacks, self.next_offset
+
+    def confirm_updates(self, offset):
+        self.confirmed = offset
+
+    def copy_message(self, from_chat_id, message_id):
+        self.copied.append((from_chat_id, message_id))
 
     def answer_callback(self, callback_id, text):
         self.answers.append(text)
@@ -68,6 +76,19 @@ def moderated(config, monkeypatch, tmp_path):
     return config, tmp_path
 
 
+def press(draft_id, action="pub", message_id=101, chat="-100500", text="🔥 Пост"):
+    """Нажатие кнопки в том виде, в каком его присылает Telegram."""
+    return {
+        "id": f"cb-{draft_id}-{action}",
+        "data": f"{action}:{draft_id}",
+        "message": {
+            "message_id": message_id,
+            "chat": {"id": chat},
+            "text": text,
+        },
+    }
+
+
 def _run(mode, **kwargs):
     return main_module.run(
         argparse.Namespace(
@@ -96,7 +117,7 @@ def test_post_goes_to_review_not_to_the_channel(moderated):
     assert len(drafts.pending_ids()) == 1
 
 
-def test_approval_publishes_the_exact_reviewed_text(moderated):
+def test_approval_copies_the_reviewed_message_into_the_channel(moderated):
     config, tmp_path = moderated
     channel = FakeSender()
 
@@ -104,17 +125,18 @@ def test_approval_publishes_the_exact_reviewed_text(moderated):
         patch.setattr(main_module, "build_senders", lambda *_: [channel])
         _run("run")
 
-        reviewed_text, _, draft_id = FakeReviewer.instances[-1].reviewed[0]
+        _, _, draft_id = FakeReviewer.instances[-1].reviewed[0]
 
         approver = FakeReviewer("t", "c")
-        approver.callbacks = [{"id": "cb1", "data": f"pub:{draft_id}"}]
+        approver.callbacks = [press(draft_id)]
         approver.next_offset = 42
         patch.setattr("avenue_bot.senders.telegram.TelegramSender",
                       lambda *a, **k: approver)
         assert _run("approvals") == 0
 
-    # В канал ушёл ровно тот текст, что видел согласующий.
-    assert channel.texts == [reviewed_text]
+    # В канал ушла копия того самого сообщения, что видел согласующий.
+    assert channel.copied == [("-100500", 101)]
+    assert approver.confirmed == 42  # обновления подтверждены до публикации
     assert approver.answers == ["Опубликовано"]
     assert approver.finished[0][1] == "✅ Опубликовано"
 
@@ -133,7 +155,7 @@ def test_rejection_keeps_the_post_out_of_the_channel(moderated):
         draft_id = FakeReviewer.instances[-1].reviewed[0][2]
 
         approver = FakeReviewer("t", "c")
-        approver.callbacks = [{"id": "cb1", "data": f"rej:{draft_id}"}]
+        approver.callbacks = [press(draft_id, "rej")]
         patch.setattr("avenue_bot.senders.telegram.TelegramSender",
                       lambda *a, **k: approver)
         assert _run("approvals") == 0
@@ -154,10 +176,7 @@ def test_second_press_does_not_publish_twice(moderated):
         draft_id = FakeReviewer.instances[-1].reviewed[0][2]
 
         approver = FakeReviewer("t", "c")
-        approver.callbacks = [
-            {"id": "cb1", "data": f"pub:{draft_id}"},
-            {"id": "cb2", "data": f"pub:{draft_id}"},
-        ]
+        approver.callbacks = [press(draft_id), press(draft_id)]
         patch.setattr("avenue_bot.senders.telegram.TelegramSender",
                       lambda *a, **k: approver)
         _run("approvals")
@@ -166,20 +185,25 @@ def test_second_press_does_not_publish_twice(moderated):
     assert approver.answers == ["Опубликовано", "По этому посту решение уже принято"]
 
 
-def test_unknown_draft_is_answered_politely(moderated):
+def test_lost_draft_still_publishes_by_copying_the_message(moderated):
+    """Файл черновиков не доехал — кнопка всё равно должна работать.
+
+    Раньше нажатие в этом случае просто ничего не делало: бот не находил
+    черновик и молча разводил руками.
+    """
     config, tmp_path = moderated
     channel = FakeSender()
 
     with pytest.MonkeyPatch.context() as patch:
         patch.setattr(main_module, "build_senders", lambda *_: [channel])
         approver = FakeReviewer("t", "c")
-        approver.callbacks = [{"id": "cb1", "data": "pub:deadbeef"}]
+        approver.callbacks = [press("deadbeef")]
         patch.setattr("avenue_bot.senders.telegram.TelegramSender",
                       lambda *a, **k: approver)
         assert _run("approvals") == 0
 
-    assert channel.posts == 0
-    assert "не найден" in approver.answers[0]
+    assert channel.copied == [("-100500", 101)]
+    assert approver.answers == ["Опубликовано"]
 
 
 def test_approved_draft_is_not_offered_again_tomorrow(moderated):
@@ -315,3 +339,29 @@ def test_wiping_memory_brings_back_a_post_with_current_prices(moderated):
         _run("run", allow_empty_state=False)
 
     assert len(FakeReviewer.instances[-1].reviewed) == 1
+
+
+def test_repeat_press_is_impossible_after_updates_are_confirmed(moderated):
+    """Подтверждённые нажатия Telegram больше не отдаёт.
+
+    Без этого потерянный pending.json означал бы, что одно и то же нажатие
+    приходит на каждом прогоне и пост уходит в канал раз в 15 минут сутки.
+    """
+    config, tmp_path = moderated
+    channel = FakeSender()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(main_module, "build_senders", lambda *_: [channel])
+        _run("run")
+        draft_id = FakeReviewer.instances[-1].reviewed[0][2]
+
+        approver = FakeReviewer("t", "c")
+        approver.callbacks = [press(draft_id)]
+        approver.next_offset = 77
+        patch.setattr("avenue_bot.senders.telegram.TelegramSender",
+                      lambda *a, **k: approver)
+        _run("approvals")
+
+    # Смещение подтверждено до публикации, а не после.
+    assert approver.confirmed == 77
+    assert channel.posts == 1

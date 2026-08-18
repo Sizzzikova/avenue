@@ -100,6 +100,36 @@ class TelegramSender:
         next_offset = max((item["update_id"] for item in updates), default=offset - 1) + 1
         return callbacks, next_offset
 
+    def confirm_updates(self, offset: int) -> None:
+        """Подтвердить Telegram, что нажатия получены.
+
+        Вызывается сразу после чтения, до публикации. Пока обновления не
+        подтверждены, Telegram отдаёт их снова на каждом прогоне — и если
+        state/pending.json не доедет до репозитория, бот будет публиковать
+        один и тот же пост каждые 15 минут целые сутки. Потерять нажатие
+        не так страшно: кнопка на месте, человек нажмёт ещё раз.
+        """
+        try:
+            self._call("getUpdates", {"offset": offset, "timeout": 0, "limit": 1})
+        except SendError as error:
+            log.warning("Не удалось подтвердить обновления: %s", error)
+
+    def copy_message(self, from_chat_id: str, message_id: int) -> None:
+        """Скопировать сообщение из чата согласования в канал.
+
+        Копия уходит без пометки «переслано» и без кнопок — подписчики видят
+        обычный пост. Так публикация не зависит от того, сохранился ли текст
+        черновика: источник правды — само сообщение, которое человек одобрил.
+        """
+        self._call(
+            "copyMessage",
+            {
+                "chat_id": self.chat_id,
+                "from_chat_id": from_chat_id,
+                "message_id": message_id,
+            },
+        )
+
     def answer_callback(self, callback_id: str, text: str) -> None:
         """Погасить «часики» на кнопке и показать всплывающий ответ."""
         try:
