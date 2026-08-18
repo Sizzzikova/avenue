@@ -1,0 +1,135 @@
+# Автопостинг акций «Авеню» в Telegram и MAX.
+#
+# ВАЖНО: расписание (schedule) работает только с ветки по умолчанию.
+# Пока код лежит в рабочей ветке, срабатывает лишь ручной запуск.
+#
+# Перед первым боевым прогоном обязательно запустите режим seed вручную,
+# иначе бот опубликует сразу все действующие акции.
+#
+# Пост уходит туда, куда указывает секрет TELEGRAM_CHAT_ID. Сейчас это
+# рабочий чат «Боты Авеню»: готовый текст приходит туда, а в основной канал
+# его выкладывают вручную.
+
+name: Avenue · дайджест акций
+
+on:
+  schedule:
+    # Раз в сутки в 10:00 по Новосибирску. Время в cron задаётся в UTC,
+    # Новосибирск — UTC+7 круглый год (часы не переводят), поэтому здесь 03:00.
+    # GitHub ставит запуски в очередь: фактическое время может съехать
+    # на 10–30 минут вперёд, это нормально и лечению не поддаётся.
+    - cron: '0 3 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'Режим запуска'
+        type: choice
+        default: 'dry-run'
+        options:
+          - dry-run
+          - seed
+          - run
+          - announce
+          - doctor
+      allow_empty_state:
+        description: 'Разрешить работу при пустом состоянии (только первый запуск)'
+        type: boolean
+        default: false
+
+permissions:
+  # Нужно, чтобы коммитить обновлённый state/seen.json обратно в репозиторий.
+  contents: write
+
+concurrency:
+  # Два одновременных прогона могут опубликовать одну акцию дважды.
+  group: avenue-promos
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+
+      - name: Установить зависимости
+        run: pip install -r requirements.txt
+
+      - name: Тесты парсера
+        # Быстрая проверка, что код вообще рабочий, до похода на сайт.
+        run: python -m pytest -q
+
+      - name: Запустить бота
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+          MAX_BOT_TOKEN: ${{ secrets.MAX_BOT_TOKEN }}
+          MAX_CHAT_ID: ${{ secrets.MAX_CHAT_ID }}
+        run: |
+          EXTRA=""
+          if [ "${{ github.event.inputs.allow_empty_state }}" = "true" ]; then
+            EXTRA="--allow-empty-state"
+          fi
+          PYTHONPATH=src python -m avenue_bot.main \
+            --mode "${{ github.event.inputs.mode || 'run' }}" $EXTRA
+
+      - name: Сохранить состояние
+        # Выполняется даже при падении: если часть постов уже ушла,
+        # состояние нужно зафиксировать, иначе они уйдут повторно.
+        #
+        # Это самый ответственный шаг всего workflow. Если состояние не
+        # доедет до репозитория, следующий прогон увидит пустой seen.json
+        # и посчитает новыми все акции сразу.
+        if: always()
+        id: save_state
+        run: |
+          echo "Записей в состоянии: $(python -c \
+            'import json;print(len(json.load(open("state/seen.json"))))' 2>/dev/null || echo '?')"
+
+          if [ -z "$(git status --porcelain state/seen.json state/pending.json)" ]; then
+            echo "Состояние не изменилось — коммитить нечего"
+            exit 0
+          fi
+
+          git config user.name  'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add state/seen.json state/pending.json
+          git commit -m 'chore: обновление состояния акций [skip ci]'
+
+          # Пушим явным рефспеком HEAD:<ветка>: actions/checkout может оставить
+          # репозиторий в detached HEAD, и тогда голый `git push` не сработает.
+          for attempt in 1 2 3 4; do
+            if git push origin "HEAD:${GITHUB_REF_NAME}"; then
+              echo "Состояние сохранено"
+              exit 0
+            fi
+            echo "Push не удался, попытка $attempt — подтягиваю чужие изменения"
+            git fetch origin "${GITHUB_REF_NAME}"
+            git rebase "origin/${GITHUB_REF_NAME}" || git rebase --abort
+            sleep $((2 ** attempt))
+          done
+          exit 1
+
+      - name: Предупредить, что состояние не сохранилось
+        # Без этого поломка была бы тихой: посты ушли, состояние осталось
+        # старым, и завтра бот отправит их повторно.
+        if: always() && steps.save_state.outcome == 'failure'
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_ADMIN_CHAT_ID: ${{ secrets.TELEGRAM_ADMIN_CHAT_ID }}
+        run: |
+          if [ -n "$TELEGRAM_BOT_TOKEN" ] && [ -n "$TELEGRAM_ADMIN_CHAT_ID" ]; then
+            curl -sS -X POST \
+              "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+              -d "chat_id=${TELEGRAM_ADMIN_CHAT_ID}" \
+              -d "text=⚠️ Бот акций «Авеню»: не удалось сохранить state/seen.json. Следующий прогон посчитает все акции новыми и повторит посты. Прогон: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}" \
+              -o /dev/null || true
+          fi
+          exit 1
