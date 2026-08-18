@@ -236,3 +236,43 @@ def test_moderation_off_publishes_straight_to_the_channel(moderated):
         assert _run("run") == 0
 
     assert channel.posts == 1
+
+
+def test_announce_posts_everything_regardless_of_memory(moderated):
+    """Режим announce собирает пост из всех сегодняшних акций.
+
+    Нужен, когда канал запускают заново: память уже полна, обычный run
+    промолчал бы, а показать текущие цены надо.
+    """
+    config, tmp_path = moderated
+    channel = FakeSender()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(main_module, "build_senders", lambda *_: [channel])
+
+        # Память полна: обычный прогон молчит.
+        _run("seed")
+        FakeReviewer.instances.clear()
+        _run("run")
+        assert FakeReviewer.instances == []
+
+        # А announce всё равно готовит пост со всеми семью акциями.
+        _run("announce")
+        text = FakeReviewer.instances[-1].reviewed[0][0]
+
+    assert text.count("<a href=") >= 7
+    assert channel.posts == 0  # и тоже через согласование
+
+
+def test_announce_refreshes_remembered_prices(moderated):
+    """После announce память считается актуальной — назавтра тишина."""
+    config, tmp_path = moderated
+    channel = FakeSender()
+
+    with pytest.MonkeyPatch.context() as patch:
+        patch.setattr(main_module, "build_senders", lambda *_: [channel])
+        _run("announce")
+        FakeReviewer.instances.clear()
+        _run("run")
+
+    assert FakeReviewer.instances == []

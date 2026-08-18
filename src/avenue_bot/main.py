@@ -10,6 +10,10 @@
   опубликует сразу все действующие акции.
 * run     — боевой режим. Если согласование включено, пост уходит в рабочий
   чат с кнопками; если выключено — сразу в канал.
+* announce — собрать пост из всех акций, что сейчас на сайте, с сегодняшними
+  ценами, независимо от того, о чём уже рассказывали. Разовая пересборка
+  витрины: например, когда канал только запускается. Память после него
+  считается актуальной, дальше всё идёт как обычно.
 * approvals — разобрать нажатия кнопок под постами, ждущими согласования.
   Сайт не трогает, работает только с черновиками. Запускается чаще основного
   режима, потому что своего сервера у бота нет и нажатия он забирает опросом.
@@ -245,6 +249,18 @@ def run(args: argparse.Namespace) -> int:
 
     all_promos = [promo for result in ok_results for promo in result.promos]
 
+    if args.mode == "announce":
+        # Разовая пересборка витрины: берём всё, что сейчас на сайте, с
+        # сегодняшними ценами, и не смотрим, о чём уже рассказывали.
+        # Защиты от залпа здесь намеренно нет — залп и есть то, что просили.
+        state.migrate_keys(all_promos)
+        new, changed = list(all_promos), []
+        log.info("Режим announce: в пост пойдут все %s акций", len(all_promos))
+        return _finish_run(
+            args, config, secrets, state, ok_results, new, changed,
+            len(all_promos), alerter, exit_code,
+        )
+
     # Состояние пустое, а мы в боевом режиме — значит seed не делали или
     # state/seen.json потерялся (например, workflow не смог его закоммитить).
     # Публиковать нельзя: в канал уйдут разом все действующие акции.
@@ -293,14 +309,33 @@ def run(args: argparse.Namespace) -> int:
         alerter.close()
         return 1
 
+    return _finish_run(
+        args, config, secrets, state, ok_results, new, changed,
+        len(all_promos), alerter, exit_code,
+    )
+
+
+def _finish_run(
+    args: argparse.Namespace,
+    config: Config,
+    secrets: Secrets,
+    state: State,
+    ok_results: list[CityResult],
+    new: list[Promo],
+    changed: list[Promo],
+    total: int,
+    alerter: Alerter,
+    exit_code: int,
+) -> int:
+    """Показать, отправить и записать — общий хвост для run и announce."""
     if args.mode == "dry-run":
-        _print_dry_run(config, new, changed, len(all_promos))
+        _print_dry_run(config, new, changed, total)
         alerter.close()
         return exit_code
 
     if not new and not changed:
         # Спокойные сутки: на сайте всё по-прежнему, в канал ничего не уходит.
-        log.info("Изменений нет — пост не выходит (акций на сайте: %s)", len(all_promos))
+        log.info("Изменений нет — пост не выходит (акций на сайте: %s)", total)
         _finish_state(state, ok_results)
         alerter.close()
         return exit_code
@@ -609,10 +644,11 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Автопостинг акций «Авеню»")
     parser.add_argument(
         "--mode",
-        choices=["run", "seed", "dry-run", "approvals"],
+        choices=["run", "seed", "dry-run", "approvals", "announce"],
         default="dry-run",
         help="run — подготовить пост, seed — только запомнить текущие, "
-        "dry-run — печать в консоль, approvals — разобрать нажатия кнопок согласования",
+        "dry-run — печать в консоль, approvals — разобрать нажатия кнопок, "
+        "announce — собрать пост из всех сегодняшних акций, не глядя на память",
     )
     parser.add_argument("--config", default=None, help="путь к config.yml")
     parser.add_argument(
