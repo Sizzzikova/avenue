@@ -3,6 +3,7 @@
     "city": "Горно-Алтайск",
     "fingerprint": "c99ea077659c74da9f6702e0ad367b4de3cca7064bfc3635635fb078fafc9445",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 12160,
     "price_source": "calc",
     "title": "Changan UNI-K"
@@ -11,41 +12,16 @@
     "city": "Горно-Алтайск",
     "fingerprint": "bb96cb4bdddb92121ca548fbcc15449ba62323f23f79c0fa5a635415b883e009",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 11985,
     "price_source": "calc",
     "title": "Haval Dargo 4WD"
-  },
-  "gorno-altaysk:car8248": {
-    "city": "Горно-Алтайск",
-    "fingerprint": "8c5618e46bb500e7cc4c930b8e3d25b88d54ca1cf6e8cdfcc2b06e14829b780c",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "posted_at": "2026-08-18T11:26:12+00:00",
-    "price": 8832,
-    "price_source": "calc",
-    "title": "Haval Jolion"
-  },
-  "irkutsk:car11056": {
-    "city": "Иркутск",
-    "fingerprint": "c07359f5491685ea01b8775baf7ac91063660a633d4b9c411cb8bb76ca8640f7",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "posted_at": "2026-08-24T03:54:19+00:00",
-    "price": 3213,
-    "price_source": "calc",
-    "title": "Nissan Roox"
-  },
-  "irkutsk:car6525": {
-    "city": "Иркутск",
-    "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "posted_at": "2026-08-24T03:54:19+00:00",
-    "price": 4536,
-    "price_source": "calc",
-    "title": "Geely Emgrand"
   },
   "irkutsk:car6585": {
     "city": "Иркутск",
     "fingerprint": "a797447b23b98d0cc4da56340213f0d92e048191b7dec3e0755685d5ea68c2bb",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 5967,
     "price_source": "calc",
     "title": "Changan UNI-V"
@@ -54,6 +30,7 @@
     "city": "Иркутск",
     "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 3888,
     "price_source": "calc",
     "title": "Geely Emgrand"
@@ -62,70 +39,34 @@
     "city": "Новосибирск",
     "fingerprint": "eec1306b84025ccd98b51b409f5d8adc9e0947304a20ba71c8eb2d961a7051fb",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 4590,
     "price_source": "calc",
     "title": "Geely Belgee X50"
-  },
-  "nsk:car11245": {
-    "city": "Новосибирск",
-    "fingerprint": "f5707b293ff0eedae55fdef8a9815aceef707588b62e00a631ce08a9cb77e31b",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "pending_drop": 6048,
-    "posted_at": "2026-08-18T11:26:12+00:00",
-    "price": 6720,
-    "price_source": "calc",
-    "title": "Chery Tiggo 8 Pro Max"
   },
   "nsk:car4608": {
     "city": "Новосибирск",
     "fingerprint": "2c44295615888224f29f1bb6e81ef479f6032314e9a906f7b8f332c30c577f06",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 5355,
     "price_source": "calc",
     "title": "Kia K5"
-  },
-  "nsk:car5486": {
-    "city": "Новосибирск",
-    "fingerprint": "d1973434224d489067d611945016e6c306006b9780d94cec01cfb69596b520ee",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "pending_drop": 5355,
-    "posted_at": "2026-08-18T11:26:12+00:00",
-    "price": 5950,
-    "price_source": "calc",
-    "title": "Chery Arrizo 8"
-  },
-  "nsk:car5748": {
-    "city": "Новосибирск",
-    "fingerprint": "e8e0f5f771d7e92cc2cb57fadbe95f2042464b9e93d09ef11809102930c9b713",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "pending_drop": 4284,
-    "posted_at": "2026-08-18T11:26:12+00:00",
-    "price": 4760,
-    "price_source": "calc",
-    "title": "Chery Tiggo 4 Pro"
   },
   "nsk:car5754": {
     "city": "Новосибирск",
     "fingerprint": "8c5618e46bb500e7cc4c930b8e3d25b88d54ca1cf6e8cdfcc2b06e14829b780c",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 4860,
     "price_source": "calc",
     "title": "Haval Jolion"
-  },
-  "nsk:car6264": {
-    "city": "Новосибирск",
-    "fingerprint": "a5b377d63e674980bed35b15e7bad3e741ec127ebffc2c99d7c21c656f1df299",
-    "first_seen": "2026-08-18T11:26:12+00:00",
-    "pending_drop": 4860,
-    "posted_at": "2026-08-18T11:26:12+00:00",
-    "price": 5400,
-    "price_source": "calc",
-    "title": "Geely Belgee X50"
   },
   "nsk:car6312": {
     "city": "Новосибирск",
     "fingerprint": "1193e9b71585b87215f38a3715e8e9f45f4fb81bf1f73c7bb82c64e9fde35526",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 8181,
     "price_source": "calc",
     "title": "Exeed TXL 4WD"
