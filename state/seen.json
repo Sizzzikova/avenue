@@ -70,5 +70,14 @@
     "price": 8181,
     "price_source": "calc",
     "title": "Exeed TXL 4WD"
+  },
+  "nsk:car6396": {
+    "city": "Новосибирск",
+    "fingerprint": "9e1990956bc854339f1630ec3c7a3e679d0f6712c034da0d225d1bc4d8082669",
+    "first_seen": "2026-08-31T09:23:26+00:00",
+    "posted_at": "2026-08-31T09:23:26+00:00",
+    "price": 3528,
+    "price_source": "calc",
+    "title": "Omoda S5"
   }
 }
