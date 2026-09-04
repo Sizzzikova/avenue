@@ -3,6 +3,7 @@
     "city": "Горно-Алтайск",
     "fingerprint": "c99ea077659c74da9f6702e0ad367b4de3cca7064bfc3635635fb078fafc9445",
     "first_seen": "2026-09-01T08:21:39+00:00",
+    "pending_drop": 11520,
     "posted_at": "2026-09-01T08:21:39+00:00",
     "price": 12160,
     "price_source": "calc",
@@ -12,6 +13,7 @@
     "city": "Горно-Алтайск",
     "fingerprint": "c4d9a923dbc4a5d5d90183dce4e0e8c343d500d35e1605795b95ce18f73b44b4",
     "first_seen": "2026-09-01T08:21:39+00:00",
+    "pending_drop": 12920,
     "posted_at": "2026-09-01T08:21:39+00:00",
     "price": 13600,
     "price_source": "calc",
@@ -21,6 +23,7 @@
     "city": "Горно-Алтайск",
     "fingerprint": "773cdd4ec30c6bb197a871ce87c65bafc58cdeae1459768339c640f71c408d19",
     "first_seen": "2026-08-28T14:56:59+00:00",
+    "pending_drop": 10880,
     "posted_at": "2026-08-28T14:56:59+00:00",
     "price": 12160,
     "price_source": "calc",
@@ -44,12 +47,12 @@
     "price_source": "calc",
     "title": "Changan UNI-V"
   },
-  "irkutsk:car9956": {
+  "irkutsk:car6896": {
     "city": "Иркутск",
     "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
-    "first_seen": "2026-08-28T14:56:59+00:00",
-    "posted_at": "2026-08-28T14:56:59+00:00",
-    "price": 4752,
+    "first_seen": "2026-09-04T07:45:30+00:00",
+    "posted_at": "2026-09-04T07:45:30+00:00",
+    "price": 5280,
     "price_source": "calc",
     "title": "Haval Jolion 4WD"
   },
@@ -62,19 +65,11 @@
     "price_source": "calc",
     "title": "Changan CS75 Plus"
   },
-  "nsk:car4558": {
-    "city": "Новосибирск",
-    "fingerprint": "e6be2726d9bebb42a1ba7b160d6e877215fd6d41881b1b052b2d3115eed7b5e4",
-    "first_seen": "2026-09-01T08:21:39+00:00",
-    "posted_at": "2026-09-01T08:21:39+00:00",
-    "price": 5508,
-    "price_source": "calc",
-    "title": "Kia Sportage"
-  },
   "nsk:car6312": {
     "city": "Новосибирск",
     "fingerprint": "1193e9b71585b87215f38a3715e8e9f45f4fb81bf1f73c7bb82c64e9fde35526",
     "first_seen": "2026-08-25T03:51:58+00:00",
+    "pending_drop": 7560,
     "posted_at": "2026-08-25T03:52:42+00:00",
     "price": 8181,
     "price_source": "calc",
