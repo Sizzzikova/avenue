@@ -1,48 +1,49 @@
 {
-  "gorno-altaysk:car13907": {
+  "gorno-altaysk:car4506": {
     "city": "Горно-Алтайск",
-    "fingerprint": "c99ea077659c74da9f6702e0ad367b4de3cca7064bfc3635635fb078fafc9445",
-    "first_seen": "2026-09-22T07:55:45+00:00",
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 11016,
+    "fingerprint": "c4d9a923dbc4a5d5d90183dce4e0e8c343d500d35e1605795b95ce18f73b44b4",
+    "first_seen": "2026-09-24T08:14:20+00:00",
+    "posted_at": "2026-09-24T08:14:20+00:00",
+    "price": 11628,
     "price_source": "calc",
-    "title": "Changan UNI-K"
+    "title": "Mitsubishi Pajero Sport"
   },
-  "gorno-altaysk:car8169": {
+  "gorno-altaysk:car5758": {
     "city": "Горно-Алтайск",
-    "fingerprint": "da388b15d5776072e3814327d7ebc592d8f02d84c3e9e89906f6ccbb01d029de",
-    "first_seen": "2026-09-22T07:55:45+00:00",
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 11520,
+    "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
+    "first_seen": "2026-09-24T08:14:20+00:00",
+    "posted_at": "2026-09-24T08:14:20+00:00",
+    "price": 7128,
     "price_source": "calc",
-    "title": "Toyota Land Cruiser Prado"
+    "title": "Haval Jolion 4WD"
+  },
+  "gorno-altaysk:car8264": {
+    "city": "Горно-Алтайск",
+    "fingerprint": "773cdd4ec30c6bb197a871ce87c65bafc58cdeae1459768339c640f71c408d19",
+    "first_seen": "2026-09-24T08:14:20+00:00",
+    "posted_at": "2026-09-24T08:14:20+00:00",
+    "price": 10404,
+    "price_source": "calc",
+    "title": "Exeed TXL 4WD"
   },
   "irkutsk:car6360": {
     "city": "Иркутск",
     "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
     "first_seen": "2026-09-22T07:55:45+00:00",
+    "pending_drop": 3312,
     "posted_at": "2026-09-22T07:55:45+00:00",
     "price": 3726,
     "price_source": "calc",
     "title": "Geely Emgrand"
   },
-  "irkutsk:car6585": {
+  "irkutsk:car6391": {
     "city": "Иркутск",
-    "fingerprint": "a797447b23b98d0cc4da56340213f0d92e048191b7dec3e0755685d5ea68c2bb",
-    "first_seen": "2026-09-22T07:55:45+00:00",
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 5832,
+    "fingerprint": "a5b377d63e674980bed35b15e7bad3e741ec127ebffc2c99d7c21c656f1df299",
+    "first_seen": "2026-09-24T08:14:20+00:00",
+    "posted_at": "2026-09-24T08:14:20+00:00",
+    "price": 4590,
     "price_source": "calc",
-    "title": "Changan UNI-V"
-  },
-  "irkutsk:car9956": {
-    "city": "Иркутск",
-    "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
-    "first_seen": "2026-09-22T07:55:45+00:00",
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 5346,
-    "price_source": "calc",
-    "title": "Haval Jolion 4WD"
+    "title": "Geely Belgee X50"
   },
   "nsk:car12289": {
     "city": "Новосибирск",
@@ -52,6 +53,15 @@
     "price": 3330,
     "price_source": "calc",
     "title": "Mitsubishi Mirage"
+  },
+  "nsk:car4605": {
+    "city": "Новосибирск",
+    "fingerprint": "f180e2343a3e06f32d48d712d111f6fd4ad984d47bf31c510e49e706fb357286",
+    "first_seen": "2026-09-24T08:14:20+00:00",
+    "posted_at": "2026-09-24T08:14:20+00:00",
+    "price": 7020,
+    "price_source": "calc",
+    "title": "Toyota Camry 70 rest"
   },
   "nsk:car6299": {
     "city": "Новосибирск",
@@ -71,12 +81,12 @@
     "price_source": "calc",
     "title": "Hyundai Elantra 1,5"
   },
-  "nsk:car8256": {
+  "nsk:car8252": {
     "city": "Новосибирск",
     "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
-    "first_seen": "2026-09-22T07:55:45+00:00",
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 5610,
+    "first_seen": "2026-09-24T08:14:20+00:00",
+    "posted_at": "2026-09-24T08:14:20+00:00",
+    "price": 5940,
     "price_source": "calc",
     "title": "Haval Jolion 4WD"
   }
