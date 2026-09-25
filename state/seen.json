@@ -26,24 +26,23 @@
     "price_source": "calc",
     "title": "Exeed TXL 4WD"
   },
+  "irkutsk:car5914": {
+    "city": "Иркутск",
+    "fingerprint": "9e1990956bc854339f1630ec3c7a3e679d0f6712c034da0d225d1bc4d8082669",
+    "first_seen": "2026-09-25T08:34:42+00:00",
+    "posted_at": "2026-09-25T08:34:42+00:00",
+    "price": 3519,
+    "price_source": "calc",
+    "title": "Omoda S5"
+  },
   "irkutsk:car6360": {
     "city": "Иркутск",
     "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
     "first_seen": "2026-09-22T07:55:45+00:00",
-    "pending_drop": 3312,
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 3726,
+    "posted_at": "2026-09-25T08:34:42+00:00",
+    "price": 3312,
     "price_source": "calc",
     "title": "Geely Emgrand"
-  },
-  "irkutsk:car6391": {
-    "city": "Иркутск",
-    "fingerprint": "a5b377d63e674980bed35b15e7bad3e741ec127ebffc2c99d7c21c656f1df299",
-    "first_seen": "2026-09-24T08:14:20+00:00",
-    "posted_at": "2026-09-24T08:14:20+00:00",
-    "price": 4590,
-    "price_source": "calc",
-    "title": "Geely Belgee X50"
   },
   "nsk:car12289": {
     "city": "Новосибирск",
