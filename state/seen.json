@@ -21,9 +21,8 @@
     "city": "Горно-Алтайск",
     "fingerprint": "773cdd4ec30c6bb197a871ce87c65bafc58cdeae1459768339c640f71c408d19",
     "first_seen": "2026-09-24T08:14:20+00:00",
-    "pending_drop": 9792,
-    "posted_at": "2026-09-24T08:14:20+00:00",
-    "price": 10404,
+    "posted_at": "2026-09-29T09:30:59+00:00",
+    "price": 9792,
     "price_source": "calc",
     "title": "Exeed TXL 4WD"
   },
@@ -53,6 +52,15 @@
     "price": 5125,
     "price_source": "calc",
     "title": "Kia Sportage"
+  },
+  "nsk:car10246": {
+    "city": "Новосибирск",
+    "fingerprint": "eec1306b84025ccd98b51b409f5d8adc9e0947304a20ba71c8eb2d961a7051fb",
+    "first_seen": "2026-09-29T09:30:59+00:00",
+    "posted_at": "2026-09-29T09:30:59+00:00",
+    "price": 5400,
+    "price_source": "calc",
+    "title": "Geely Belgee X50"
   },
   "nsk:car14438": {
     "city": "Новосибирск",
@@ -85,9 +93,8 @@
     "city": "Новосибирск",
     "fingerprint": "ceceddaf48fb7ed0f5085454e7d01696f2c0e6cead6b63324ecd98cf6b6ee531",
     "first_seen": "2026-09-22T07:55:45+00:00",
-    "pending_drop": 7560,
-    "posted_at": "2026-09-22T07:55:45+00:00",
-    "price": 8640,
+    "posted_at": "2026-09-29T09:30:59+00:00",
+    "price": 7560,
     "price_source": "calc",
     "title": "TANK 300"
   }
