@@ -1,39 +1,21 @@
 {
-  "gorno-altaysk:car6262": {
+  "gorno-altaysk:car10062": {
     "city": "Горно-Алтайск",
     "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
-    "first_seen": "2026-09-28T09:25:50+00:00",
-    "posted_at": "2026-09-28T09:25:50+00:00",
+    "first_seen": "2026-10-02T09:25:34+00:00",
+    "posted_at": "2026-10-02T09:25:34+00:00",
     "price": 4608,
     "price_source": "calc",
     "title": "Geely Emgrand"
   },
-  "gorno-altaysk:car6265": {
+  "gorno-altaysk:car14037": {
     "city": "Горно-Алтайск",
-    "fingerprint": "640df0fd4aba192e68e5ef57ae6df5e3233336783f539674b810be0ff03e8738",
-    "first_seen": "2026-09-28T09:25:50+00:00",
-    "posted_at": "2026-09-28T09:25:50+00:00",
-    "price": 7128,
+    "fingerprint": "ae2ebc16155bd1e644d0688e12782a35f9f335673398e42bfe776251e593efe3",
+    "first_seen": "2026-10-02T09:25:34+00:00",
+    "posted_at": "2026-10-02T09:25:34+00:00",
+    "price": 6075,
     "price_source": "calc",
-    "title": "Omoda C5 4WD"
-  },
-  "gorno-altaysk:car8264": {
-    "city": "Горно-Алтайск",
-    "fingerprint": "773cdd4ec30c6bb197a871ce87c65bafc58cdeae1459768339c640f71c408d19",
-    "first_seen": "2026-09-24T08:14:20+00:00",
-    "posted_at": "2026-09-29T09:30:59+00:00",
-    "price": 9792,
-    "price_source": "calc",
-    "title": "Exeed TXL 4WD"
-  },
-  "irkutsk:car10109": {
-    "city": "Иркутск",
-    "fingerprint": "235a043deb3bc90f6a822d45d1c57b9776e53f0360bbf02f9fd66d43a31b0c8f",
-    "first_seen": "2026-09-28T09:25:50+00:00",
-    "posted_at": "2026-09-28T09:25:50+00:00",
-    "price": 4860,
-    "price_source": "calc",
-    "title": "Omoda C5"
+    "title": "CHERY Tiggo 4 Pro"
   },
   "irkutsk:car12220": {
     "city": "Иркутск",
@@ -44,23 +26,23 @@
     "price_source": "calc",
     "title": "Toyota Corolla"
   },
-  "irkutsk:car1823": {
+  "irkutsk:car2851": {
     "city": "Иркутск",
-    "fingerprint": "e6be2726d9bebb42a1ba7b160d6e877215fd6d41881b1b052b2d3115eed7b5e4",
-    "first_seen": "2026-09-28T09:25:50+00:00",
-    "posted_at": "2026-09-28T09:25:50+00:00",
-    "price": 5125,
+    "fingerprint": "e2da4a89c0190f5c8f99de9a8d21fcfecdc22e9ad39f007196716f56de5f7933",
+    "first_seen": "2026-10-02T09:25:34+00:00",
+    "posted_at": "2026-10-02T09:25:34+00:00",
+    "price": 4410,
     "price_source": "calc",
-    "title": "Kia Sportage"
+    "title": "Hyundai Creta"
   },
-  "nsk:car10246": {
-    "city": "Новосибирск",
-    "fingerprint": "eec1306b84025ccd98b51b409f5d8adc9e0947304a20ba71c8eb2d961a7051fb",
-    "first_seen": "2026-09-29T09:30:59+00:00",
-    "posted_at": "2026-09-29T09:30:59+00:00",
-    "price": 5400,
+  "irkutsk:car5914": {
+    "city": "Иркутск",
+    "fingerprint": "9e1990956bc854339f1630ec3c7a3e679d0f6712c034da0d225d1bc4d8082669",
+    "first_seen": "2026-10-02T09:25:34+00:00",
+    "posted_at": "2026-10-02T09:25:34+00:00",
+    "price": 4140,
     "price_source": "calc",
-    "title": "Geely Belgee X50"
+    "title": "Omoda S5"
   },
   "nsk:car14438": {
     "city": "Новосибирск",
@@ -75,19 +57,20 @@
     "city": "Новосибирск",
     "fingerprint": "674aa213e3474143802dea85e5562f48ecadd4e38faf07e5444e1d2830387c91",
     "first_seen": "2026-09-28T09:25:50+00:00",
+    "pending_drop": 7560,
     "posted_at": "2026-09-28T09:25:50+00:00",
     "price": 8100,
     "price_source": "calc",
     "title": "Hyundai Santa Fe"
   },
-  "nsk:car4608": {
+  "nsk:car6267": {
     "city": "Новосибирск",
-    "fingerprint": "2c44295615888224f29f1bb6e81ef479f6032314e9a906f7b8f332c30c577f06",
-    "first_seen": "2026-09-28T09:25:50+00:00",
-    "posted_at": "2026-09-28T09:25:50+00:00",
-    "price": 5940,
+    "fingerprint": "a5b377d63e674980bed35b15e7bad3e741ec127ebffc2c99d7c21c656f1df299",
+    "first_seen": "2026-10-02T09:25:34+00:00",
+    "posted_at": "2026-10-02T09:25:34+00:00",
+    "price": 5400,
     "price_source": "calc",
-    "title": "Kia K5"
+    "title": "Geely Belgee X50"
   },
   "nsk:car6299": {
     "city": "Новосибирск",
@@ -97,5 +80,14 @@
     "price": 7560,
     "price_source": "calc",
     "title": "TANK 300"
+  },
+  "nsk:car8254": {
+    "city": "Новосибирск",
+    "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
+    "first_seen": "2026-10-02T09:25:34+00:00",
+    "posted_at": "2026-10-02T09:25:34+00:00",
+    "price": 5610,
+    "price_source": "calc",
+    "title": "Haval Jolion 4WD"
   }
 }
