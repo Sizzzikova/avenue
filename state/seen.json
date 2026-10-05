@@ -30,9 +30,8 @@
     "city": "Иркутск",
     "fingerprint": "e2da4a89c0190f5c8f99de9a8d21fcfecdc22e9ad39f007196716f56de5f7933",
     "first_seen": "2026-10-02T09:25:34+00:00",
-    "pending_drop": 3969,
-    "posted_at": "2026-10-02T09:25:34+00:00",
-    "price": 4410,
+    "posted_at": "2026-10-05T10:04:38+00:00",
+    "price": 3969,
     "price_source": "calc",
     "title": "Hyundai Creta"
   },
@@ -40,9 +39,8 @@
     "city": "Иркутск",
     "fingerprint": "9e1990956bc854339f1630ec3c7a3e679d0f6712c034da0d225d1bc4d8082669",
     "first_seen": "2026-10-02T09:25:34+00:00",
-    "pending_drop": 3726,
-    "posted_at": "2026-10-02T09:25:34+00:00",
-    "price": 4140,
+    "posted_at": "2026-10-05T10:04:38+00:00",
+    "price": 3726,
     "price_source": "calc",
     "title": "Omoda S5"
   },
