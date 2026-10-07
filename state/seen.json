@@ -1,17 +1,9 @@
 {
-  "gorno-altaysk:car10062": {
-    "city": "Горно-Алтайск",
-    "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
-    "first_seen": "2026-10-02T09:25:34+00:00",
-    "posted_at": "2026-10-02T09:25:34+00:00",
-    "price": 4608,
-    "price_source": "calc",
-    "title": "Geely Emgrand"
-  },
   "gorno-altaysk:car14037": {
     "city": "Горно-Алтайск",
     "fingerprint": "ae2ebc16155bd1e644d0688e12782a35f9f335673398e42bfe776251e593efe3",
     "first_seen": "2026-10-02T09:25:34+00:00",
+    "pending_drop": 5400,
     "posted_at": "2026-10-02T09:25:34+00:00",
     "price": 6075,
     "price_source": "calc",
@@ -21,6 +13,7 @@
     "city": "Горно-Алтайск",
     "fingerprint": "c4d9a923dbc4a5d5d90183dce4e0e8c343d500d35e1605795b95ce18f73b44b4",
     "first_seen": "2026-10-06T09:49:11+00:00",
+    "pending_drop": 8512,
     "posted_at": "2026-10-06T09:49:11+00:00",
     "price": 9576,
     "price_source": "calc",
