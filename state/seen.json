@@ -26,15 +26,6 @@
     "price_source": "calc",
     "title": "Haval Jolion 4WD"
   },
-  "irkutsk:car4504": {
-    "city": "Иркутск",
-    "fingerprint": "ff3f0143d957dd16acd1160b1a22ef2de4ac3309e572d15a07d48344770e3175",
-    "first_seen": "2026-10-13T10:09:29+00:00",
-    "posted_at": "2026-10-13T10:09:29+00:00",
-    "price": 6885,
-    "price_source": "calc",
-    "title": "Mitsubishi Pajero Sport"
-  },
   "irkutsk:car6525": {
     "city": "Иркутск",
     "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
