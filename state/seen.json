@@ -8,15 +8,6 @@
     "price_source": "calc",
     "title": "Mitsubishi Pajero Sport"
   },
-  "gorno-altaysk:car8250": {
-    "city": "Горно-Алтайск",
-    "fingerprint": "14a324df4b5adac5d46100b7df5104f3a63fe37ac231b4a7d0bc542ccff20b25",
-    "first_seen": "2026-10-09T10:08:33+00:00",
-    "posted_at": "2026-10-09T10:08:33+00:00",
-    "price": 4080,
-    "price_source": "calc",
-    "title": "Haval Jolion"
-  },
   "gorno-altaysk:car8253": {
     "city": "Горно-Алтайск",
     "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
