@@ -1,12 +1,12 @@
 {
-  "gorno-altaysk:car4506": {
+  "gorno-altaysk:car6430": {
     "city": "Горно-Алтайск",
-    "fingerprint": "c4d9a923dbc4a5d5d90183dce4e0e8c343d500d35e1605795b95ce18f73b44b4",
-    "first_seen": "2026-10-06T09:49:11+00:00",
-    "posted_at": "2026-10-28T09:21:28+00:00",
-    "price": 5985,
+    "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 3240,
     "price_source": "calc",
-    "title": "Mitsubishi Pajero Sport"
+    "title": "Geely Emgrand"
   },
   "gorno-altaysk:car8253": {
     "city": "Горно-Алтайск",
@@ -17,49 +17,58 @@
     "price_source": "calc",
     "title": "Haval Jolion 4WD"
   },
-  "irkutsk:car6525": {
+  "irkutsk:car11056": {
     "city": "Иркутск",
+    "fingerprint": "c07359f5491685ea01b8775baf7ac91063660a633d4b9c411cb8bb76ca8640f7",
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 2430,
+    "price_source": "calc",
+    "title": "Nissan Roox"
+  },
+  "irkutsk:car14266": {
+    "city": "Иркутск",
+    "fingerprint": "a6c5559eb57aa4c964d893132f39f32960aa2f9b2c1f58022fca30cc959c937f",
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 4860,
+    "price_source": "calc",
+    "title": "Haval Jolion"
+  },
+  "irkutsk:car6391": {
+    "city": "Иркутск",
+    "fingerprint": "a5b377d63e674980bed35b15e7bad3e741ec127ebffc2c99d7c21c656f1df299",
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 4860,
+    "price_source": "calc",
+    "title": "Geely Belgee X50"
+  },
+  "nsk:car10246": {
+    "city": "Новосибирск",
+    "fingerprint": "eec1306b84025ccd98b51b409f5d8adc9e0947304a20ba71c8eb2d961a7051fb",
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 5100,
+    "price_source": "calc",
+    "title": "Geely Belgee X50"
+  },
+  "nsk:car10321": {
+    "city": "Новосибирск",
     "fingerprint": "2e6fd89ece5f33e5cc445a67a6d75b63cf18bc2f26ba8920c824faae24f6d4c8",
-    "first_seen": "2026-10-23T08:17:06+00:00",
-    "posted_at": "2026-10-23T08:17:06+00:00",
-    "price": 3726,
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 3680,
     "price_source": "calc",
     "title": "Geely Emgrand"
   },
-  "irkutsk:car9956": {
-    "city": "Иркутск",
-    "fingerprint": "aed8374da783406582a6eeef412817ca2fd2b1a717760aaf138b6154a16c5db7",
-    "first_seen": "2026-10-13T10:09:29+00:00",
-    "posted_at": "2026-10-13T10:09:29+00:00",
-    "price": 5049,
-    "price_source": "calc",
-    "title": "Haval Jolion 4WD"
-  },
-  "nsk:car12289": {
+  "nsk:car5736": {
     "city": "Новосибирск",
-    "fingerprint": "c37beb7ca97f1b97949002e0b3bb3870cf384cf494140c581ed8d6145ecb11f7",
-    "first_seen": "2026-10-09T10:08:33+00:00",
-    "posted_at": "2026-10-09T10:08:33+00:00",
-    "price": 3330,
+    "fingerprint": "d1973434224d489067d611945016e6c306006b9780d94cec01cfb69596b520ee",
+    "first_seen": "2026-10-30T09:40:04+00:00",
+    "posted_at": "2026-10-30T09:40:04+00:00",
+    "price": 5580,
     "price_source": "calc",
-    "title": "Mitsubishi Mirage"
-  },
-  "nsk:car14438": {
-    "city": "Новосибирск",
-    "fingerprint": "c2343b8eb79522d71b3251080d09640f2125fd579c29393df9ecdb75dbc79fbe",
-    "first_seen": "2026-10-23T08:17:06+00:00",
-    "posted_at": "2026-10-23T08:17:06+00:00",
-    "price": 5220,
-    "price_source": "calc",
-    "title": "Geely Coolray"
-  },
-  "nsk:car6756": {
-    "city": "Новосибирск",
-    "fingerprint": "c7a87d0b32fa75694dcb94f04068f79ce71eed735b22d8801930c69a5f580505",
-    "first_seen": "2026-10-23T08:17:06+00:00",
-    "posted_at": "2026-10-23T08:17:06+00:00",
-    "price": 5100,
-    "price_source": "calc",
-    "title": "Hyundai Elantra 1,5"
+    "title": "Chery Arrizo 8"
   }
 }
